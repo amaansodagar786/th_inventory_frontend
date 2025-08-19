@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Formik, Form, Field, FieldArray } from "formik";
 import * as Yup from "yup";
 import { toast, ToastContainer } from "react-toastify";
-import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash, FaEdit, FaSave } from "react-icons/fa";
 import Navbar from "../../Components/Sidebar/Navbar";
 import html2pdf from "html2pdf.js";
 import PurchaseOrderPrint from "./PurchaseOrderPrint";
@@ -29,7 +29,6 @@ const PurchaseOrder = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -77,6 +76,7 @@ const PurchaseOrder = () => {
     const initialValues = {
         ownerGST: "24AAAFF2996A1Z6",
         ownerPAN: "AAAFF2996A",
+        vendorId: "",
         vendorName: "",
         vendorGST: "",
         vendorAddress: "",
@@ -91,7 +91,7 @@ const PurchaseOrder = () => {
         includeTerms: false,
         poNumber: "",
         date: new Date().toISOString().slice(0, 10),
-        items: [{ name: "", description: "", hsn: "", qty: "", rate: "", unit: "" }],
+        items: [{ itemId: "", name: "", description: "", hsn: "", qty: "", rate: "", unit: "" }],
     };
 
     const validationSchema = Yup.object({
@@ -134,8 +134,6 @@ const PurchaseOrder = () => {
         });
     }, [debouncedSearch, orders]);
 
-
-
     const calculateTotals = (items) => {
         const subtotal = items.reduce((sum, item) => sum + item.qty * item.rate, 0);
         let cgst = 0, sgst = 0, igst = 0;
@@ -149,37 +147,34 @@ const PurchaseOrder = () => {
         return { subtotal, cgst, sgst, igst, total };
     };
 
-    const handleVendorSelect = (e, setFieldValue) => {
-        const selectedVendorName = e.target.value;
-        const selectedVendor = vendors.find(v => v.vendorName === selectedVendorName);
-        if (selectedVendor) {
-            setFieldValue("vendorName", selectedVendor.vendorName);
-            setFieldValue("vendorGST", selectedVendor.gstNumber);
-            setFieldValue("vendorAddress", selectedVendor.address);
-            setFieldValue("vendorContact", selectedVendor.contactNumber);
-            setFieldValue("vendorEmail", selectedVendor.email);
-            setFieldValue("shipName", selectedVendor.contactPerson || "");
-            setFieldValue("shipCompany", selectedVendor.vendorName);
-            setFieldValue("shipPhone", selectedVendor.contactNumber);
+    const handleVendorSelect = (selectedOption, setFieldValue) => {
+        if (selectedOption) {
+            setFieldValue("vendorId", selectedOption.vendorData.vendorId);
+            setFieldValue("vendorName", selectedOption.vendorData.vendorName);
+            setFieldValue("vendorGST", selectedOption.vendorData.gstNumber);
+            setFieldValue("vendorAddress", selectedOption.vendorData.address);
+            setFieldValue("vendorContact", selectedOption.vendorData.contactNumber);
+            setFieldValue("vendorEmail", selectedOption.vendorData.email);
+            setFieldValue("shipName", selectedOption.vendorData.contactPerson || "");
+            setFieldValue("shipCompany", selectedOption.vendorData.vendorName);
+            setFieldValue("shipPhone", selectedOption.vendorData.contactNumber);
 
-            if (selectedVendor.gstNumber && selectedVendor.gstNumber.length >= 2) {
-                const stateCode = selectedVendor.gstNumber.slice(0, 2);
+            if (selectedOption.vendorData.gstNumber && selectedOption.vendorData.gstNumber.length >= 2) {
+                const stateCode = selectedOption.vendorData.gstNumber.slice(0, 2);
                 setGstType(stateCode === "24" ? "intra" : "inter");
             }
         }
     };
 
-    const handleItemSelect = (e, index, setFieldValue) => {
-        const selectedItemName = e.target.value;
-        const selectedItem = items.find(i => i.itemName === selectedItemName);
-        if (selectedItem) {
-            setFieldValue(`items.${index}.name`, selectedItem.itemName);
-            setFieldValue(`items.${index}.description`, selectedItem.description);
-            setFieldValue(`items.${index}.hsn`, selectedItem.hsnCode);
-            setFieldValue(`items.${index}.unit`, selectedItem.unit);
-            // setFieldValue(`items.${index}.qty`, 1); 
-            if (selectedItem.rate) {
-                setFieldValue(`items.${index}.rate`, selectedItem.rate);
+    const handleItemSelect = (selectedOption, index, setFieldValue) => {
+        if (selectedOption) {
+            setFieldValue(`items.${index}.itemId`, selectedOption.itemData.itemId);
+            setFieldValue(`items.${index}.name`, selectedOption.itemData.itemName);
+            setFieldValue(`items.${index}.description`, selectedOption.itemData.description);
+            setFieldValue(`items.${index}.hsn`, selectedOption.itemData.hsnCode);
+            setFieldValue(`items.${index}.unit`, selectedOption.itemData.unit);
+            if (selectedOption.itemData.rate) {
+                setFieldValue(`items.${index}.rate`, selectedOption.itemData.rate);
             }
         }
     };
@@ -268,7 +263,48 @@ const PurchaseOrder = () => {
         toast.success("Exported all purchase orders to Excel");
     };
 
-    const POModal = ({ po, onClose, onExport }) => {
+    const handleUpdatePO = async (updatedPO) => {
+        try {
+            const { poNumber, _id, createdAt, updatedAt, ...poData } = updatedPO;
+            const response = await axios.put(
+                `${import.meta.env.VITE_API_URL}/po/update-po/${updatedPO.poNumber}`,
+                poData
+            );
+
+            setOrders(prev =>
+                prev.map(po =>
+                    po.poNumber === updatedPO.poNumber ? response.data.data : po
+                )
+            );
+            toast.success("Purchase Order updated successfully!");
+        } catch (error) {
+            console.error("Error updating purchase order:", error);
+            toast.error(error.response?.data?.message || "Error updating purchase order");
+        }
+    };
+
+    const handleDeletePO = async (poNumber) => {
+        try {
+            await axios.delete(
+                `${import.meta.env.VITE_API_URL}/po/delete-po/${poNumber}`
+            );
+
+            setOrders(prev =>
+                prev.filter(po => po.poNumber !== poNumber)
+            );
+            setSelectedPO(null);
+            toast.success("Purchase Order deleted successfully!");
+        } catch (error) {
+            console.error("Error deleting purchase order:", error);
+            toast.error(error.response?.data?.message || "Error deleting purchase order");
+        }
+    };
+
+    const POModal = ({ po, onClose, onExport, onUpdate, onDelete }) => {
+        const [isEditing, setIsEditing] = useState(false);
+        const [editedPO, setEditedPO] = useState({});
+        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
         useEffect(() => {
             document.body.style.overflow = 'hidden';
             return () => {
@@ -276,21 +312,70 @@ const PurchaseOrder = () => {
             };
         }, []);
 
+        useEffect(() => {
+            if (po) {
+                setEditedPO({ ...po });
+            }
+        }, [po]);
+
+        const handleInputChange = (e) => {
+            const { name, value } = e.target;
+            setEditedPO(prev => ({ ...prev, [name]: value }));
+        };
+
+        const handleItemChange = (index, field, value) => {
+            setEditedPO(prev => {
+                const updatedItems = [...prev.items];
+                updatedItems[index] = {
+                    ...updatedItems[index],
+                    [field]: field === 'qty' || field === 'rate' ? Number(value) : value
+                };
+
+                const totals = calculateTotals(updatedItems);
+                return {
+                    ...prev,
+                    items: updatedItems,
+                    ...totals
+                };
+            });
+        };
+
+        const handleSave = async () => {
+            try {
+                await onUpdate(editedPO);
+                setIsEditing(false);
+            } catch (error) {
+                console.error("Error updating purchase order:", error);
+            }
+        };
+
+        const calculateTotals = (items) => {
+            const subtotal = items.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+            let cgst = 0, sgst = 0, igst = 0;
+            const gstType = po.vendorGST?.slice(0, 2) === "24" ? "intra" : "inter";
+
+            if (gstType === "intra") {
+                cgst = +(subtotal * 0.09).toFixed(2);
+                sgst = +(subtotal * 0.09).toFixed(2);
+            } else {
+                igst = +(subtotal * 0.18).toFixed(2);
+            }
+
+            const total = +(subtotal + cgst + sgst + igst).toFixed(2);
+            return { subtotal, cgst, sgst, igst, total, gstType };
+        };
+
         if (!po) return null;
 
-        const totals = {
-            subtotal: po.items.reduce((sum, item) => sum + (item.qty * item.rate), 0),
-            cgst: po.cgst || 0,
-            sgst: po.sgst || 0,
-            igst: po.igst || 0,
-            total: po.total || 0
-        };
+        const totals = calculateTotals(editedPO.items || po.items);
 
         return (
             <div className="modal-overlay" onClick={onClose}>
                 <div className="modal-content" onClick={e => e.stopPropagation()}>
                     <div className="modal-header">
-                        <div className="modal-title">PO: {po.poNumber}</div>
+                        <div className="modal-title">
+                            {isEditing ? "Edit Purchase Order" : `PO: ${po.poNumber}`}
+                        </div>
                         <button className="modal-close" onClick={onClose}>
                             &times;
                         </button>
@@ -320,78 +405,138 @@ const PurchaseOrder = () => {
                                 <span className="detail-label">Address:</span>
                                 <span className="detail-value">{po.vendorAddress}</span>
                             </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Contact:</span>
-                                <span className="detail-value">{po.vendorContact}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Email:</span>
-                                <span className="detail-value">{po.vendorEmail}</span>
-                            </div>
 
                             <div className="section-header">Shipping Details</div>
                             <div className="detail-row">
-                                <span className="detail-label">Name:</span>
-                                <span className="detail-value">{po.shipName}</span>
+                                <span className="detail-label">Shipping Name:</span>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={editedPO.shipName || ''}
+                                        onChange={(e) => handleInputChange(e)}
+                                        name="shipName"
+                                        className="edit-input"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{po.shipName}</span>
+                                )}
                             </div>
                             <div className="detail-row">
                                 <span className="detail-label">Company:</span>
-                                <span className="detail-value">{po.shipCompany}</span>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={editedPO.shipCompany || ''}
+                                        onChange={(e) => handleInputChange(e)}
+                                        name="shipCompany"
+                                        className="edit-input"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{po.shipCompany}</span>
+                                )}
                             </div>
                             <div className="detail-row">
                                 <span className="detail-label">Phone:</span>
-                                <span className="detail-value">{po.shipPhone}</span>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={editedPO.shipPhone || ''}
+                                        onChange={(e) => handleInputChange(e)}
+                                        name="shipPhone"
+                                        className="edit-input"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{po.shipPhone}</span>
+                                )}
                             </div>
 
-                            {/* New Fields */}
-                            {po.consigneeAddress && (
-                                <div className="detail-row">
-                                    <span className="detail-label">Consignee Address:</span>
-                                    <span className="detail-value">{po.consigneeAddress}</span>
-                                </div>
-                            )}
-                            {po.deliveryAddress && (
-                                <div className="detail-row">
-                                    <span className="detail-label">Delivery Address:</span>
-                                    <span className="detail-value">{po.deliveryAddress}</span>
-                                </div>
-                            )}
+                            <div className="section-header">Address Details</div>
+                            <div className="detail-row">
+                                <span className="detail-label">Consignee Address:</span>
+                                {isEditing ? (
+                                    <textarea
+                                        value={editedPO.consigneeAddress || ''}
+                                        onChange={(e) => handleInputChange(e)}
+                                        name="consigneeAddress"
+                                        className="edit-textarea"
+                                        rows="3"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{po.consigneeAddress || 'N/A'}</span>
+                                )}
+                            </div>
+                            <div className="detail-row">
+                                <span className="detail-label">Delivery Address:</span>
+                                {isEditing ? (
+                                    <textarea
+                                        value={editedPO.deliveryAddress || ''}
+                                        onChange={(e) => handleInputChange(e)}
+                                        name="deliveryAddress"
+                                        className="edit-textarea"
+                                        rows="3"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{po.deliveryAddress || 'N/A'}</span>
+                                )}
+                            </div>
 
                             <div className="section-header">Items Ordered</div>
                             <div className="items-grid">
-                                {po.items.map((item, index) => (
+                                {(editedPO.items || po.items).map((item, index) => (
                                     <div key={index} className="item-card">
                                         <div className="item-header">
                                             <span className="item-name">{item.name}</span>
                                             <span className="item-hsn">HSN: {item.hsn || 'N/A'}</span>
                                         </div>
                                         <div className="item-details">
-                                            <span>Qty: {item.qty} {item.unit}</span>
-                                            <span>Rate: ₹{item.rate}</span>
+                                            <span>Description: {item.description || 'N/A'}</span>
+                                            <span>
+                                                Qty: {isEditing ? (
+                                                    <input
+                                                        type="number"
+                                                        value={item.qty}
+                                                        onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
+                                                        min="1"
+                                                        className="edit-input-small"
+                                                    />
+                                                ) : (
+                                                    item.qty
+                                                )} {item.unit}
+                                            </span>
+                                            <span>
+                                                Rate: {isEditing ? (
+                                                    <input
+                                                        type="number"
+                                                        value={item.rate}
+                                                        onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                                                        min="0"
+                                                        step="0.01"
+                                                        className="edit-input-small"
+                                                    />
+                                                ) : (
+                                                    `₹${item.rate}`
+                                                )}
+                                            </span>
                                             <span>Total: ₹{(item.qty * item.rate).toFixed(2)}</span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
-                            {po.extraNote && (
-                                <>
-                                    <div className="section-header">Additional Notes</div>
-                                    <div className="detail-row">
-                                        <span className="detail-value">{po.extraNote}</span>
-                                    </div>
-                                </>
-                            )}
-
-                            {po.terms && (
-                                <>
-                                    <div className="section-header">Terms & Conditions</div>
-                                    <div className="detail-row">
-                                        <pre className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{po.terms}</pre>
-                                    </div>
-                                </>
-                            )}
-
+                            <div className="section-header">Additional Notes</div>
+                            <div className="detail-row">
+                                {isEditing ? (
+                                    <textarea
+                                        value={editedPO.extraNote || ''}
+                                        onChange={(e) => handleInputChange(e)}
+                                        name="extraNote"
+                                        className="edit-textarea"
+                                        rows="3"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{po.extraNote || 'N/A'}</span>
+                                )}
+                            </div>
 
                             <div className="section-header">Order Summary</div>
                             <div className="totals-section">
@@ -429,7 +574,46 @@ const PurchaseOrder = () => {
                         <button className="export-btn" onClick={onExport}>
                             <FaFileExport /> Export as PDF
                         </button>
+                        <button
+                            className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+                            onClick={isEditing ? handleSave : () => setIsEditing(true)}
+                        >
+                            {isEditing ? <FaSave /> : <FaEdit />}
+                            {isEditing ? "Save Changes" : "Update"}
+                        </button>
+                        <button
+                            className="delete-btn"
+                            onClick={() => setShowDeleteConfirm(true)}
+                        >
+                            <FaTrash /> Delete
+                        </button>
                     </div>
+
+                    {showDeleteConfirm && (
+                        <div className="confirm-dialog-overlay">
+                            <div className="confirm-dialog">
+                                <h3>Confirm Deletion</h3>
+                                <p>Are you sure you want to delete PO {po.poNumber}? This action cannot be undone.</p>
+                                <div className="confirm-buttons">
+                                    <button
+                                        className="confirm-cancel"
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        className="confirm-delete"
+                                        onClick={() => {
+                                            onDelete(po.poNumber);
+                                            setShowDeleteConfirm(false);
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -466,7 +650,6 @@ const PurchaseOrder = () => {
 
                 {showForm && (
                     <div className="form-container premium">
-
                         <Formik
                             initialValues={initialValues}
                             validationSchema={validationSchema}
@@ -495,7 +678,6 @@ const PurchaseOrder = () => {
 
                                 return (
                                     <>
-
                                         <div className="po-form-header">
                                             <h2>Create Purchase Order</h2>
                                             <div className="date-container">
@@ -505,12 +687,7 @@ const PurchaseOrder = () => {
                                         </div>
                                         <Form>
                                             <div className="form-group-row">
-                                                {/* <div className="field-wrapper">
-                                                <label>PO Number</label>
-                                                <Field name="poNumber" readOnly placeholder="Generated after submission" />
-                                            </div> */}
                                                 <div className="field-wrapper">
-                                                    {/* <label>Date</label>   */}
                                                     <Field name="date" readOnly type="hidden" />
                                                 </div>
                                             </div>
@@ -519,18 +696,6 @@ const PurchaseOrder = () => {
                                             <div className="form-group-row">
                                                 <div className="field-wrapper">
                                                     <label>Vendor Name</label>
-                                                    {/* <Field
-                                                    name="vendorName"
-                                                    as="select"
-                                                    onChange={(e) => handleVendorSelect(e, setFieldValue)}
-                                                >
-                                                    <option value="">Select Vendor</option>
-                                                    {vendors.map((vendor) => (
-                                                        <option key={vendor.vendorId} value={vendor.vendorName}>
-                                                            {vendor.vendorName}
-                                                        </option>
-                                                    ))}
-                                                </Field> */}
                                                     <Select
                                                         className="react-select-container"
                                                         classNamePrefix="react-select"
@@ -540,12 +705,7 @@ const PurchaseOrder = () => {
                                                             vendorData: vendor
                                                         }))}
                                                         onChange={(selectedOption) => {
-                                                            if (selectedOption) {
-                                                                handleVendorSelect(
-                                                                    { target: { value: selectedOption.value } },
-                                                                    setFieldValue
-                                                                );
-                                                            }
+                                                            handleVendorSelect(selectedOption, setFieldValue);
                                                         }}
                                                         placeholder="Select Vendor"
                                                         isSearchable={true}
@@ -586,7 +746,6 @@ const PurchaseOrder = () => {
                                                 </div>
                                             </div>
 
-                                            {/* New Fields */}
                                             <h3>Address Details</h3>
                                             <div className="form-group-row">
                                                 <div className="field-wrapper">
@@ -614,13 +773,7 @@ const PurchaseOrder = () => {
                                                                         itemData: item
                                                                     }))}
                                                                     onChange={(selectedOption) => {
-                                                                        if (selectedOption) {
-                                                                            handleItemSelect(
-                                                                                { target: { value: selectedOption.value } },
-                                                                                index,
-                                                                                setFieldValue
-                                                                            );
-                                                                        }
+                                                                        handleItemSelect(selectedOption, index, setFieldValue);
                                                                     }}
                                                                     placeholder="Items"
                                                                     isSearchable={true}
@@ -645,7 +798,7 @@ const PurchaseOrder = () => {
                                                         <button
                                                             type="button"
                                                             className="add-btn"
-                                                            onClick={() => push({ name: "", description: "", hsn: "", qty: 1, rate: 0, unit: "" })}
+                                                            onClick={() => push({ itemId: "", name: "", description: "", hsn: "", qty: 1, rate: 0, unit: "" })}
                                                         >
                                                             + Add Item
                                                         </button>
@@ -692,7 +845,6 @@ const PurchaseOrder = () => {
                                                 {isSubmitting ? "Submitting..." : "Submit PO"}
                                             </button>
                                         </Form>
-
                                     </>
                                 );
                             }}
@@ -736,6 +888,8 @@ const PurchaseOrder = () => {
                         po={selectedPO}
                         onClose={() => setSelectedPO(null)}
                         onExport={handleExportPDF}
+                        onUpdate={handleUpdatePO}
+                        onDelete={handleDeletePO}
                     />
                 )}
             </div>
