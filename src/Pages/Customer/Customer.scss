@@ -436,6 +436,151 @@
   }
 }
 
+
+/* Edit Mode Styles */
+.edit-input, .edit-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #fff;
+  transition: all 0.3s;
+}
+
+.edit-input:focus, .edit-textarea:focus {
+  border-color: #7366ff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(115, 102, 255, 0.2);
+}
+
+.edit-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Modal Footer Buttons */
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  justify-content: center;
+  position: sticky;
+  bottom: 0;
+  background: white;
+  z-index: 10;
+}
+
+.modal-footer button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-footer button svg {
+  font-size: 14px;
+}
+
+.update-btn {
+  background: linear-gradient(to right, #ff9800, #ffb74d);
+}
+
+.update-btn:hover {
+  background: linear-gradient(to right, #fb8c00, #ff9800);
+}
+
+.save-btn {
+  background: linear-gradient(to right, #4caf50, #66bb6a);
+}
+
+.save-btn:hover {
+  background: linear-gradient(to right, #388e3c, #4caf50);
+}
+
+.delete-btn {
+  background: linear-gradient(to right, #f44336, #ef5350);
+}
+
+.delete-btn:hover {
+  background: linear-gradient(to right, #d32f2f, #f44336);
+}
+
+/* Delete Confirmation Dialog */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.confirm-dialog {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.confirm-dialog h3 {
+  margin-top: 0;
+  color: #f44336;
+}
+
+.confirm-dialog p {
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confirm-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirm-cancel {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.confirm-cancel:hover {
+  background: #e0e0e0;
+}
+
+.confirm-delete {
+  background: #f44336;
+  color: white;
+}
+
+.confirm-delete:hover {
+  background: #d32f2f;
+}
+
 /* Responsive Styles */
 @media (max-width: 768px) {
   .modal-content {

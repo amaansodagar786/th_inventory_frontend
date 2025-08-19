@@ -6,7 +6,7 @@ import axios from "axios";
 import Navbar from "../../Components/Sidebar/Navbar";
 import {
   FaUserTie, FaEnvelope, FaPhone, FaMapMarkerAlt,
-  FaIdCard, FaPlus, FaFileExport, FaFileExcel, FaSearch
+  FaIdCard, FaPlus, FaFileExport, FaFileExcel, FaSearch, FaEdit, FaSave, FaTrash
 } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
@@ -86,42 +86,42 @@ const Vendor = () => {
     address: "",
   };
 
-const validationSchema = Yup.object({
-  vendorName: Yup.string()
-    .required("Vendor Name is required"),
+  const validationSchema = Yup.object({
+    vendorName: Yup.string()
+      .required("Vendor Name is required"),
 
-  email: Yup.string()
-    .email("Invalid email")
-    .required("Email is required"),
+    email: Yup.string()
+      .email("Invalid email")
+      .required("Email is required"),
 
-  contactNumber: Yup.string()
-    .matches(/^[0-9]+$/, "Contact Number must contain only digits")
-    .min(10, "Contact Number must be at least 10 digits")
-    // .max(10, "Contact Number must be exactly 10 digits") 
-    .required("Contact Number is required"),
+    contactNumber: Yup.string()
+      .matches(/^[0-9]+$/, "Contact Number must contain only digits")
+      .min(10, "Contact Number must be at least 10 digits")
+      // .max(10, "Contact Number must be exactly 10 digits") 
+      .required("Contact Number is required"),
 
-  companyName: Yup.string(),
+    companyName: Yup.string(),
 
-  gstNumber: Yup.string()
-    .matches(/^[0-9A-Z]+$/, "GST Number must contain only uppercase letters and digits")
-    .min(15, "GST Number must be 15 characters")
-    .max(15, "GST Number must be 15 characters"),
+    gstNumber: Yup.string()
+      .matches(/^[0-9A-Z]+$/, "GST Number must contain only uppercase letters and digits")
+      .min(15, "GST Number must be 15 characters")
+      .max(15, "GST Number must be 15 characters"),
 
-  email2: Yup.string().email("Invalid email"),
-  email3: Yup.string().email("Invalid email"),
+    email2: Yup.string().email("Invalid email"),
+    email3: Yup.string().email("Invalid email"),
 
-  contactNumber2: Yup.string()
-    .matches(/^[0-9]+$/, "Contact Number must contain only digits")
-    .min(10, "Contact Number must be at least 10 digits") ,
+    contactNumber2: Yup.string()
+      .matches(/^[0-9]+$/, "Contact Number must contain only digits")
+      .min(10, "Contact Number must be at least 10 digits"),
     // .max(10, "Contact Number must be exactly 10 digits"), 
 
-  contactNumber3: Yup.string()
-    .matches(/^[0-9]+$/, "Contact Number must contain only digits")
-    .min(10, "Contact Number must be at least 10 digits") ,
+    contactNumber3: Yup.string()
+      .matches(/^[0-9]+$/, "Contact Number must contain only digits")
+      .min(10, "Contact Number must be at least 10 digits"),
     // .max(10, "Contact Number must be exactly 10 digits"), 
 
-  address: Yup.string(),
-});
+    address: Yup.string(),
+  });
 
 
   // Update handleSubmit function
@@ -219,7 +219,49 @@ const validationSchema = Yup.object({
   };
 
 
-  const VendorModal = ({ vendor, onClose, onExport }) => {
+  // Add these functions to your Vendor component
+  const handleUpdateVendor = async (updatedVendor) => {
+    try {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/vendors/update-vendor/${updatedVendor.vendorId}`,
+        updatedVendor
+      );
+
+      setVendors(prev =>
+        prev.map(v =>
+          v.vendorId === updatedVendor.vendorId ? response.data : v
+        )
+      );
+      toast.success("Vendor updated successfully!");
+    } catch (error) {
+      console.error("Error updating vendor:", error);
+      toast.error(error.response?.data?.message || "Error updating vendor");
+    }
+  };
+
+  const handleDeleteVendor = async (vendorId) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/vendors/delete-vendor/${vendorId}`
+      );
+
+      setVendors(prev =>
+        prev.filter(v => v.vendorId !== vendorId)
+      );
+      setSelectedVendor(null);
+      toast.success("Vendor deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      toast.error(error.response?.data?.message || "Error deleting vendor");
+    }
+  };
+
+
+  const VendorModal = ({ vendor, onClose, onExport, onUpdate, onDelete }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedVendor, setEditedVendor] = useState({});
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     useEffect(() => {
       document.body.style.overflow = 'hidden';
       return () => {
@@ -227,13 +269,35 @@ const validationSchema = Yup.object({
       };
     }, []);
 
+    useEffect(() => {
+      if (vendor) {
+        setEditedVendor({ ...vendor });
+      }
+    }, [vendor]);
+
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
+      setEditedVendor(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+      try {
+        await onUpdate(editedVendor);
+        setIsEditing(false);
+      } catch (error) {
+        console.error("Error updating vendor:", error);
+      }
+    };
+
     if (!vendor) return null;
 
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Vendor Details: {vendor.vendorName}</div>
+            <div className="modal-title">
+              {isEditing ? "Edit Vendor" : `Vendor Details: ${vendor.vendorName}`}
+            </div>
             <button className="modal-close" onClick={onClose}>
               &times;
             </button>
@@ -241,59 +305,175 @@ const validationSchema = Yup.object({
 
           <div className="modal-body">
             <div className="wo-details-grid">
+              {/* Vendor Name */}
               <div className="detail-row">
                 <span className="detail-label">Vendor Name:</span>
-                <span className="detail-value">{vendor.vendorName}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Company Name:</span>
-                <span className="detail-value">{vendor.companyName || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">GST Number:</span>
-                <span className="detail-value">{vendor.gstNumber || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="vendorName"
+                    value={editedVendor.vendorName || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{vendor.vendorName}</span>
+                )}
               </div>
 
-              {/* Email Fields */}
+              {/* Company Name */}
+              <div className="detail-row">
+                <span className="detail-label">Company Name:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="companyName"
+                    value={editedVendor.companyName || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{vendor.companyName || 'N/A'}</span>
+                )}
+              </div>
+
+              {/* GST Number */}
+              <div className="detail-row">
+                <span className="detail-label">GST Number:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="gstNumber"
+                    value={editedVendor.gstNumber || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{vendor.gstNumber || 'N/A'}</span>
+                )}
+              </div>
+
+              {/* Primary Email */}
               <div className="detail-row">
                 <span className="detail-label">Primary Email:</span>
-                <span className="detail-value">{vendor.email || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    name="email"
+                    value={editedVendor.email || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{vendor.email || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Secondary Email */}
               {vendor.email2 && (
                 <div className="detail-row">
                   <span className="detail-label">Secondary Email:</span>
-                  <span className="detail-value">{vendor.email2}</span>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      name="email2"
+                      value={editedVendor.email2 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{vendor.email2}</span>
+                  )}
                 </div>
               )}
+
+              {/* Tertiary Email */}
               {vendor.email3 && (
                 <div className="detail-row">
                   <span className="detail-label">Tertiary Email:</span>
-                  <span className="detail-value">{vendor.email3}</span>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      name="email3"
+                      value={editedVendor.email3 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{vendor.email3}</span>
+                  )}
                 </div>
               )}
 
-              {/* Contact Fields */}
+              {/* Primary Contact */}
               <div className="detail-row">
                 <span className="detail-label">Primary Contact:</span>
-                <span className="detail-value">{vendor.contactNumber || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="contactNumber"
+                    value={editedVendor.contactNumber || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{vendor.contactNumber || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Secondary Contact */}
               {vendor.contactNumber2 && (
                 <div className="detail-row">
                   <span className="detail-label">Secondary Contact:</span>
-                  <span className="detail-value">{vendor.contactNumber2}</span>
-                </div>
-              )}
-              {vendor.contactNumber3 && (
-                <div className="detail-row">
-                  <span className="detail-label">Tertiary Contact:</span>
-                  <span className="detail-value">{vendor.contactNumber3}</span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="contactNumber2"
+                      value={editedVendor.contactNumber2 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{vendor.contactNumber2}</span>
+                  )}
                 </div>
               )}
 
+              {/* Tertiary Contact */}
+              {vendor.contactNumber3 && (
+                <div className="detail-row">
+                  <span className="detail-label">Tertiary Contact:</span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="contactNumber3"
+                      value={editedVendor.contactNumber3 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{vendor.contactNumber3}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Address */}
               <div className="detail-row">
                 <span className="detail-label">Address:</span>
-                <span className="detail-value">{vendor.address || 'N/A'}</span>
+                {isEditing ? (
+                  <textarea
+                    name="address"
+                    value={editedVendor.address || ''}
+                    onChange={handleInputChange}
+                    className="edit-textarea"
+                    rows="3"
+                  />
+                ) : (
+                  <span className="detail-value">{vendor.address || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Created At */}
               <div className="detail-row">
                 <span className="detail-label">Created At:</span>
                 <span className="detail-value">
@@ -307,12 +487,63 @@ const validationSchema = Yup.object({
             <button className="export-btn" onClick={onExport}>
               <FaFileExport /> Export as PDF
             </button>
+            <button
+              className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+              onClick={isEditing ? handleSave : () => setIsEditing(true)}
+            >
+              {isEditing ? <FaSave /> : <FaEdit />}
+              {isEditing ? "Save Changes" : "Update"}
+            </button>
+            <button
+              className="delete-btn"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <FaTrash /> Delete
+            </button>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="confirm-dialog-overlay">
+            <div className="confirm-dialog">
+              <h3>Confirm Deletion</h3>
+              <p>Are you sure you want to delete {vendor.vendorName}? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button
+                  className="confirm-cancel"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-delete"
+                  onClick={() => {
+                    onDelete(vendor.vendorId);
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+  {
+    selectedVendor && (
+      <VendorModal
+        vendor={vendors.find(v => v.vendorId === selectedVendor)}
+        onClose={() => setSelectedVendor(null)}
+        onExport={exportSelectedAsPDF}
+        onUpdate={handleUpdateVendor}
+        onDelete={handleDeleteVendor}
+      />
+    )
+  }
 
 
   return (
@@ -496,6 +727,8 @@ const validationSchema = Yup.object({
             vendor={vendors.find(v => v.vendorId === selectedVendor)}
             onClose={() => setSelectedVendor(null)}
             onExport={exportSelectedAsPDF}
+            onUpdate={handleUpdateVendor}
+            onDelete={handleDeleteVendor}
           />
         )}
       </div>

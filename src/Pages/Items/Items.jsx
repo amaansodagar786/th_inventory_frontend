@@ -14,7 +14,8 @@ import {
   FaFileExport,
   FaFileExcel,
   FaPercent,
-  FaSearch
+  FaSearch,
+  FaEdit, FaSave, FaTrash
 } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
@@ -32,11 +33,11 @@ const Items = () => {
 
 
 
-   useEffect(() => {
-      window.scrollTo(0, 0);
-    }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-    
+
 
   // Debounce search input
   useEffect(() => {
@@ -93,33 +94,33 @@ const Items = () => {
     );
   }, [debouncedSearch, items]);
 
- const handleSubmit = async (values, { resetForm, setFieldError }) => {
-  try {
-    const payload = {
-      ...values,
-      taxSlab: Number(values.taxSlab),
-    };
+  const handleSubmit = async (values, { resetForm, setFieldError }) => {
+    try {
+      const payload = {
+        ...values,
+        taxSlab: Number(values.taxSlab),
+      };
 
-    const response = await axios.post(
-      `${import.meta.env.VITE_API_URL}/items/create-item`, 
-      payload
-    );
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/items/create-item`,
+        payload
+      );
 
-    setItems((prev) => [response.data, ...prev]);
-    toast.success("Item submitted successfully!");
-    resetForm();
-    setShowForm(false);
-  } catch (error) {
-    if (error.response && error.response.data.field === "hsnCode") {
-      const errorMessage = "Item with this HSN code already exists";
-      setFieldError("hsnCode", errorMessage);
-      toast.error(errorMessage);
-    } else {
-      console.error("Error saving item:", error);
-      toast.error(error.response?.data?.message || "Failed to submit item.");
+      setItems((prev) => [response.data, ...prev]);
+      toast.success("Item submitted successfully!");
+      resetForm();
+      setShowForm(false);
+    } catch (error) {
+      if (error.response && error.response.data.field === "hsnCode") {
+        const errorMessage = "Item with this HSN code already exists";
+        setFieldError("hsnCode", errorMessage);
+        toast.error(errorMessage);
+      } else {
+        console.error("Error saving item:", error);
+        toast.error(error.response?.data?.message || "Failed to submit item.");
+      }
     }
-  }
-};
+  };
 
 
   const selectItem = (itemId) => {
@@ -197,8 +198,51 @@ const Items = () => {
     XLSX.writeFile(workbook, "all_items.xlsx");
   };
 
+  const handleUpdateItem = async (updatedItem) => {
+    try {
+      // Remove problematic fields before sending
+      const { itemId, _id, createdAt, updatedAt, ...itemData } = updatedItem;
 
-  const ItemModal = ({ item, onClose, onExport }) => {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/items/update-item/${updatedItem.itemId}`,
+        itemData
+      );
+
+      setItems(prev =>
+        prev.map(item =>
+          item.itemId === updatedItem.itemId ? response.data : item
+        )
+      );
+      toast.success("Item updated successfully!");
+    } catch (error) {
+      console.error("Error updating item:", error);
+      toast.error(error.response?.data?.message || "Error updating item");
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/items/delete-item/${itemId}`
+      );
+
+      setItems(prev =>
+        prev.filter(item => item.itemId !== itemId)
+      );
+      setSelectedItem(null);
+      toast.success("Item deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast.error(error.response?.data?.message || "Error deleting item");
+    }
+  };
+
+
+  const ItemModal = ({ item, onClose, onExport, onUpdate, onDelete }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedItem, setEditedItem] = useState({});
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     useEffect(() => {
       document.body.style.overflow = 'hidden';
       return () => {
@@ -206,13 +250,35 @@ const Items = () => {
       };
     }, []);
 
+    useEffect(() => {
+      if (item) {
+        setEditedItem({ ...item });
+      }
+    }, [item]);
+
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
+      setEditedItem(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+      try {
+        await onUpdate(editedItem);
+        setIsEditing(false);
+      } catch (error) {
+        console.error("Error updating item:", error);
+      }
+    };
+
     if (!item) return null;
 
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Item Details: {item.itemName}</div>
+            <div className="modal-title">
+              {isEditing ? "Edit Item" : `Item Details: ${item.itemName}`}
+            </div>
             <button className="modal-close" onClick={onClose}>
               &times;
             </button>
@@ -220,31 +286,114 @@ const Items = () => {
 
           <div className="modal-body">
             <div className="wo-details-grid">
-              {/* Basic Item Details */}
+              {/* Item Name */}
               <div className="detail-row">
                 <span className="detail-label">Item Name:</span>
-                <span className="detail-value">{item.itemName}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="itemName"
+                    value={editedItem.itemName || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{item.itemName}</span>
+                )}
               </div>
+
+              {/* Minimum Quantity */}
               <div className="detail-row">
                 <span className="detail-label">Minimum Quantity:</span>
-                <span className="detail-value">{item.minimumQty}</span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    name="minimumQty"
+                    value={editedItem.minimumQty || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{item.minimumQty}</span>
+                )}
               </div>
+
+              {/* HSN Code */}
               <div className="detail-row">
                 <span className="detail-label">HSN Code:</span>
-                <span className="detail-value">{item.hsnCode || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="hsnCode"
+                    value={editedItem.hsnCode || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{item.hsnCode || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Unit */}
               <div className="detail-row">
                 <span className="detail-label">Unit:</span>
-                <span className="detail-value">{item.unit || 'N/A'}</span>
+                {isEditing ? (
+                  <select
+                    name="unit"
+                    value={editedItem.unit || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  >
+                    <option value="">Select Unit</option>
+                    <option value="Meter (Mtr.)">Meter (Mtr.)</option>
+                    <option value="Numbers (No.)">Numbers (No.)</option>
+                    <option value="Kilogram (Kg.)">Kilogram (Kg.)</option>
+                    <option value="Litre (L.)">Litre (L.)</option>
+                  </select>
+                ) : (
+                  <span className="detail-value">{item.unit || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Tax Slab */}
               <div className="detail-row">
                 <span className="detail-label">Tax Slab:</span>
-                <span className="detail-value">{item.taxSlab}%</span>
+                {isEditing ? (
+                  <select
+                    name="taxSlab"
+                    value={editedItem.taxSlab || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  >
+                    <option value="">Select Tax Slab</option>
+                    {TAX_SLABS.map((slab, index) => (
+                      <option key={index} value={slab.value}>
+                        {slab.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="detail-value">{item.taxSlab}%</span>
+                )}
               </div>
+
+              {/* Description */}
               <div className="detail-row">
                 <span className="detail-label">Description:</span>
-                <span className="detail-value">{item.description || 'N/A'}</span>
+                {isEditing ? (
+                  <textarea
+                    name="description"
+                    value={editedItem.description || ''}
+                    onChange={handleInputChange}
+                    className="edit-textarea"
+                    rows="3"
+                  />
+                ) : (
+                  <span className="detail-value">{item.description || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Created At */}
               <div className="detail-row">
                 <span className="detail-label">Created At:</span>
                 <span className="detail-value">
@@ -258,8 +407,48 @@ const Items = () => {
             <button className="export-btn" onClick={onExport}>
               <FaFileExport /> Export as PDF
             </button>
+            <button
+              className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+              onClick={isEditing ? handleSave : () => setIsEditing(true)}
+            >
+              {isEditing ? <FaSave /> : <FaEdit />}
+              {isEditing ? "Save Changes" : "Update"}
+            </button>
+            <button
+              className="delete-btn"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <FaTrash /> Delete
+            </button>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="confirm-dialog-overlay">
+            <div className="confirm-dialog">
+              <h3>Confirm Deletion</h3>
+              <p>Are you sure you want to delete {item.itemName}? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button
+                  className="confirm-cancel"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-delete"
+                  onClick={() => {
+                    onDelete(item.itemId);
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -295,71 +484,71 @@ const Items = () => {
         </div>
 
         {showForm && (
-  <div className="form-container premium">
-    <h2>Add Item</h2>
-    <Formik
-      initialValues={initialValues}
-      validationSchema={validationSchema}
-      onSubmit={handleSubmit}
-    >
-      <Form>
-        <div className="form-row">
-          <div className="form-field">
-            <label><FaCubes /> Item Name *</label>
-            <Field name="itemName" type="text" />
-            <ErrorMessage name="itemName" component="div" className="error" />
-          </div>
-          <div className="form-field">
-            <label><FaHashtag /> Minimum Qty *</label>
-            <Field name="minimumQty" type="number" />
-            <ErrorMessage name="minimumQty" component="div" className="error" />
-          </div>
-        </div>
+          <div className="form-container premium">
+            <h2>Add Item</h2>
+            <Formik
+              initialValues={initialValues}
+              validationSchema={validationSchema}
+              onSubmit={handleSubmit}
+            >
+              <Form>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label><FaCubes /> Item Name *</label>
+                    <Field name="itemName" type="text" />
+                    <ErrorMessage name="itemName" component="div" className="error" />
+                  </div>
+                  <div className="form-field">
+                    <label><FaHashtag /> Minimum Qty *</label>
+                    <Field name="minimumQty" type="number" />
+                    <ErrorMessage name="minimumQty" component="div" className="error" />
+                  </div>
+                </div>
 
-        <div className="form-row">
-          <div className="form-field">
-            <label><FaIdCard /> HSN/SAC Code *</label>
-            <Field name="hsnCode" type="text" />
-            <ErrorMessage name="hsnCode" component="div" className="error" />
-          </div>
-          <div className="form-field">
-            <label><FaBalanceScale /> Unit *</label>
-            <Field as="select" name="unit" className="select-field">
-              <option value="">Select Unit</option>
-              <option value="Meter (Mtr.)">Meter (Mtr.)</option>
-              <option value="Numbers (No.)">Numbers (No.)</option>
-              <option value="Kilogram (Kg.)">Kilogram (Kg.)</option>
-              <option value="Litre (L.)">Litre (L.)</option>
-            </Field>
-            <ErrorMessage name="unit" component="div" className="error" />
-          </div>
-        </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label><FaIdCard /> HSN/SAC Code *</label>
+                    <Field name="hsnCode" type="text" />
+                    <ErrorMessage name="hsnCode" component="div" className="error" />
+                  </div>
+                  <div className="form-field">
+                    <label><FaBalanceScale /> Unit *</label>
+                    <Field as="select" name="unit" className="select-field">
+                      <option value="">Select Unit</option>
+                      <option value="Meter (Mtr.)">Meter (Mtr.)</option>
+                      <option value="Numbers (No.)">Numbers (No.)</option>
+                      <option value="Kilogram (Kg.)">Kilogram (Kg.)</option>
+                      <option value="Litre (L.)">Litre (L.)</option>
+                    </Field>
+                    <ErrorMessage name="unit" component="div" className="error" />
+                  </div>
+                </div>
 
-        <div className="form-row">
-          <div className="form-field">
-            <label><FaPercent /> Tax Slab *</label>
-            <Field as="select" name="taxSlab" className="select-field">
-              <option value="">Select Tax Slab</option>
-              {TAX_SLABS.map((slab, index) => (
-                <option key={index} value={slab.value}>
-                  {slab.label}
-                </option>
-              ))}
-            </Field>
-            <ErrorMessage name="taxSlab" component="div" className="error" />
-          </div>
-          <div className="form-field">
-            <label><FaStickyNote /> Description *</label>
-            <Field name="description" as="textarea" rows="3" />
-            <ErrorMessage name="description" component="div" className="error" />
-          </div>
-        </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label><FaPercent /> Tax Slab *</label>
+                    <Field as="select" name="taxSlab" className="select-field">
+                      <option value="">Select Tax Slab</option>
+                      {TAX_SLABS.map((slab, index) => (
+                        <option key={index} value={slab.value}>
+                          {slab.label}
+                        </option>
+                      ))}
+                    </Field>
+                    <ErrorMessage name="taxSlab" component="div" className="error" />
+                  </div>
+                  <div className="form-field">
+                    <label><FaStickyNote /> Description *</label>
+                    <Field name="description" as="textarea" rows="3" />
+                    <ErrorMessage name="description" component="div" className="error" />
+                  </div>
+                </div>
 
-        <button type="submit">Submit</button>
-      </Form>
-    </Formik>
-  </div>
-)}
+                <button type="submit">Submit</button>
+              </Form>
+            </Formik>
+          </div>
+        )}
 
         <div className="data-table">
           <table>
@@ -398,6 +587,8 @@ const Items = () => {
             item={items.find(i => i.itemId === selectedItem)}
             onClose={() => setSelectedItem(null)}
             onExport={exportSelectedAsPDF}
+            onUpdate={handleUpdateItem}
+            onDelete={handleDeleteItem}
           />
         )}
       </div>

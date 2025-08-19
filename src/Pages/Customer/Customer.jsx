@@ -4,7 +4,7 @@ import * as Yup from "yup";
 import { toast, ToastContainer } from "react-toastify";
 import {
   FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt,
-  FaIdCard, FaPlus, FaFileExport, FaFileExcel, FaSearch
+  FaIdCard, FaPlus, FaFileExport, FaFileExcel, FaSearch, FaEdit, FaSave, FaTrash
 } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
@@ -274,8 +274,76 @@ const Customer = () => {
     }
   };
 
+  // Add these functions to your Customer component
+  const handleUpdateCustomer = async (updatedCustomer) => {
+    try {
+      const customerId = updatedCustomer.customerId;
 
-  const CustomerModal = ({ customer, onClose, onExport }) => {
+      // Remove both timestamp fields that cause issues
+      const dataToSend = { ...updatedCustomer };
+      delete dataToSend.createdAt;
+      delete dataToSend.updatedAt; // Add this line!
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/customer/update-customer/${customerId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dataToSend),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update customer");
+      }
+
+      const data = await response.json();
+      setCustomers(prev =>
+        prev.map(cust =>
+          cust.customerId === updatedCustomer.customerId ? data : cust
+        )
+      );
+      toast.success("Customer updated successfully!");
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      toast.error(error.message || "Error updating customer");
+    }
+  };
+
+  const handleDeleteCustomer = async (customerId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/customer/delete-customer/${customerId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete customer");
+      }
+
+      setCustomers(prev =>
+        prev.filter(cust => cust.customerId !== customerId)
+      );
+      setSelectedCustomer(null);
+      toast.success("Customer deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      toast.error(error.message || "Error deleting customer");
+    }
+  };
+
+
+
+
+  const CustomerModal = ({ customer, onClose, onExport, onUpdate, onDelete }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedCustomer, setEditedCustomer] = useState({});
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     useEffect(() => {
       document.body.style.overflow = 'hidden';
       return () => {
@@ -283,13 +351,35 @@ const Customer = () => {
       };
     }, []);
 
+    useEffect(() => {
+      if (customer) {
+        setEditedCustomer({ ...customer });
+      }
+    }, [customer]);
+
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
+      setEditedCustomer(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+      try {
+        await onUpdate(editedCustomer);
+        setIsEditing(false);
+      } catch (error) {
+        console.error("Error updating customer:", error);
+      }
+    };
+
     if (!customer) return null;
 
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Customer Details: {customer.customerName}</div>
+            <div className="modal-title">
+              {isEditing ? "Edit Customer" : `Customer Details: ${customer.customerName}`}
+            </div>
             <button className="modal-close" onClick={onClose}>
               &times;
             </button>
@@ -297,70 +387,207 @@ const Customer = () => {
 
           <div className="modal-body">
             <div className="wo-details-grid">
-              {/* Basic Customer Details */}
+              {/* Customer Name */}
               <div className="detail-row">
                 <span className="detail-label">Customer Name:</span>
-                <span className="detail-value">{customer.customerName}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Company Name:</span>
-                <span className="detail-value">{customer.companyName || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">GST Number:</span>
-                <span className="detail-value">{customer.gstNumber || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="customerName"
+                    value={editedCustomer.customerName || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.customerName}</span>
+                )}
               </div>
 
-              {/* Email Fields */}
+              {/* Company Name */}
+              <div className="detail-row">
+                <span className="detail-label">Company Name:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="companyName"
+                    value={editedCustomer.companyName || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.companyName || 'N/A'}</span>
+                )}
+              </div>
+
+              {/* GST Number */}
+              <div className="detail-row">
+                <span className="detail-label">GST Number:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="gstNumber"
+                    value={editedCustomer.gstNumber || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.gstNumber || 'N/A'}</span>
+                )}
+              </div>
+
+              {/* Primary Email */}
               <div className="detail-row">
                 <span className="detail-label">Primary Email:</span>
-                <span className="detail-value">{customer.email || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    name="email"
+                    value={editedCustomer.email || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.email || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Secondary Email */}
               {customer.email2 && (
                 <div className="detail-row">
                   <span className="detail-label">Secondary Email:</span>
-                  <span className="detail-value">{customer.email2}</span>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      name="email2"
+                      value={editedCustomer.email2 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{customer.email2}</span>
+                  )}
                 </div>
               )}
+
+              {/* Tertiary Email */}
               {customer.email3 && (
                 <div className="detail-row">
                   <span className="detail-label">Tertiary Email:</span>
-                  <span className="detail-value">{customer.email3}</span>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      name="email3"
+                      value={editedCustomer.email3 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{customer.email3}</span>
+                  )}
                 </div>
               )}
 
-              {/* Contact Fields */}
+              {/* Primary Contact */}
               <div className="detail-row">
                 <span className="detail-label">Primary Contact:</span>
-                <span className="detail-value">{customer.contactNumber || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="contactNumber"
+                    value={editedCustomer.contactNumber || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.contactNumber || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Secondary Contact */}
               {customer.contactNumber2 && (
                 <div className="detail-row">
                   <span className="detail-label">Secondary Contact:</span>
-                  <span className="detail-value">{customer.contactNumber2}</span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="contactNumber2"
+                      value={editedCustomer.contactNumber2 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{customer.contactNumber2}</span>
+                  )}
                 </div>
               )}
+
+              {/* Tertiary Contact */}
               {customer.contactNumber3 && (
                 <div className="detail-row">
                   <span className="detail-label">Tertiary Contact:</span>
-                  <span className="detail-value">{customer.contactNumber3}</span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="contactNumber3"
+                      value={editedCustomer.contactNumber3 || ''}
+                      onChange={handleInputChange}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="detail-value">{customer.contactNumber3}</span>
+                  )}
                 </div>
               )}
 
+              {/* Address */}
               <div className="detail-row">
                 <span className="detail-label">Address:</span>
-                <span className="detail-value">{customer.address || 'N/A'}</span>
+                {isEditing ? (
+                  <textarea
+                    name="address"
+                    value={editedCustomer.address || ''}
+                    onChange={handleInputChange}
+                    className="edit-textarea"
+                    rows="3"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.address || 'N/A'}</span>
+                )}
               </div>
 
+              {/* City */}
               <div className="detail-row">
                 <span className="detail-label">City:</span>
-                <span className="detail-value">{customer.city || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="city"
+                    value={editedCustomer.city || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.city || 'N/A'}</span>
+                )}
               </div>
 
+              {/* Pincode */}
               <div className="detail-row">
                 <span className="detail-label">Pincode:</span>
-                <span className="detail-value">{customer.pincode || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="pincode"
+                    value={editedCustomer.pincode || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{customer.pincode || 'N/A'}</span>
+                )}
               </div>
+
+              {/* Created At */}
               <div className="detail-row">
                 <span className="detail-label">Created At:</span>
                 <span className="detail-value">
@@ -374,12 +601,65 @@ const Customer = () => {
             <button className="export-btn" onClick={onExport}>
               <FaFileExport /> Export as PDF
             </button>
+            <button
+              className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+              onClick={isEditing ? handleSave : () => setIsEditing(true)}
+            >
+              {isEditing ? <FaSave /> : <FaEdit />}
+              {isEditing ? "Save Changes" : "Update"}
+            </button>
+            <button
+              className="delete-btn"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <FaTrash /> Delete
+            </button>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="confirm-dialog-overlay">
+            <div className="confirm-dialog">
+              <h3>Confirm Deletion</h3>
+              <p>Are you sure you want to delete {customer.customerName}? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button
+                  className="confirm-cancel"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-delete"
+                  onClick={() => {
+                    onDelete(customer.customerId);
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
+
+  // Update the modal rendering part
+  {
+    selectedCustomer && (
+      <CustomerModal
+        customer={customers.find(c => c.customerId === selectedCustomer)}
+        onClose={() => setSelectedCustomer(null)}
+        onExport={exportAsPdf}
+        onUpdate={handleUpdateCustomer}
+        onDelete={handleDeleteCustomer}
+      />
+    )
+  }
   return (
     <Navbar>
       <ToastContainer position="top-center" autoClose={3000} />
@@ -580,6 +860,8 @@ const Customer = () => {
             customer={customers.find(c => c.customerId === selectedCustomer)}
             onClose={() => setSelectedCustomer(null)}
             onExport={exportAsPdf}
+            onUpdate={handleUpdateCustomer}
+            onDelete={handleDeleteCustomer}
           />
         )}
 
