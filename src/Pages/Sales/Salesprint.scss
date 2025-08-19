@@ -1,0 +1,325 @@
+#sales-pdf {
+  width: 100%;
+  max-width: 210mm;
+  // min-height: 297mm; 
+  padding: 10mm;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+  box-sizing: border-box;
+
+  @media print {
+    padding: 0 10mm;
+    margin: 0;
+    width: 210mm;
+    height: auto;
+  }
+
+  /* EMPTY SPACE FOR PRE-PRINTED HEADER */
+  .header-space {
+    height: 30mm;
+    /* Adjust this value based on your pre-printed header size */
+  }
+
+  /* Company GST and LUT details */
+  .company-details {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    // border-bottom: 1px solid #000; 
+
+    .left-details,
+    .right-details {
+      p {
+        margin: 3px 0;
+      }
+    }
+  }
+
+  .invoice-po-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #000;
+
+    .invoice-details,
+    .po-details {
+      p {
+        margin: 3px 0;
+        font-weight: bold;
+      }
+    }
+  }
+
+  /* Invoice meta placed below header space */
+  .invoice-meta {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 14px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #000;
+  }
+
+  .party-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 4%;
+
+    .party-card {
+      width: 48%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+
+      h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+      }
+
+      p {
+        margin: 5px 0;
+        word-break: break-word;
+      }
+    }
+  }
+
+  .po-info {
+    margin-bottom: 15px;
+
+    p {
+      margin: 5px 0;
+    }
+  }
+
+  .items-table {
+
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    table-layout: fixed;
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 5px;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    td {
+      font-size: 12px;
+      vertical-align: top;
+
+      &:first-child {
+        width: 5%;
+        text-align: center;
+      }
+
+      &:nth-child(2) {
+        width: 20%;
+      }
+
+      &:nth-child(3) {
+        width: 25%;
+      }
+
+      &:nth-child(4) {
+        width: 5%;
+        text-align: center;
+      }
+
+      &:nth-child(5) {
+        width: 5%;
+        text-align: center;
+      }
+
+      &:nth-child(6),
+      &:nth-child(7) {
+        width: 10%;
+        text-align: right;
+      }
+    }
+  }
+
+  .summary-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 4%;
+
+    .transport-details {
+      width: 48%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+
+      h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+      }
+
+      p {
+        margin: 5px 0;
+      }
+    }
+
+    .amount-details {
+      width: 48%;
+      box-sizing: border-box;
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+
+        td {
+          padding: 5px;
+          text-align: right;
+
+          &:first-child {
+            text-align: left;
+            font-weight: bold;
+          }
+        }
+
+        .total-row {
+          border-top: 1px solid #000;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+
+  .bank-qr-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+
+    .bank-details {
+      width: 60%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+
+      h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+      }
+
+      p {
+        margin: 5px 0;
+      }
+    }
+
+    .qr-code {
+      width: 35%;
+      text-align: center;
+      padding: 10px;
+      box-sizing: border-box;
+
+      p {
+        margin-top: 5px;
+        font-size: 11px;
+      }
+    }
+  }
+
+  .notes-section {
+    margin-bottom: 20px;
+
+    .extra-notes,
+    .terms-section {
+      margin-bottom: 15px;
+
+      h4 {
+        margin: 0 0 5px 0;
+        font-size: 14px;
+      }
+
+      p,
+      pre {
+        margin: 5px 0;
+        white-space: pre-wrap;
+        font-family: inherit;
+      }
+    }
+  }
+
+  .certification-section {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 50px;
+    align-items: flex-start;
+
+    .certification-text {
+      width: 60%;
+      font-size: 11px;
+      font-style: italic;
+    }
+
+    .signature-box {
+      width: 35%;
+      text-align: center;
+
+      p {
+        margin: 5px 0;
+      }
+
+      .signature-line {
+        width: 200px;
+        height: 1px;
+        background: #000;
+        margin: 15px auto;
+      }
+    }
+  }
+
+  .jurisdiction-note {
+    text-align: center;
+    margin-top: 20px;
+    font-weight: bold;
+  }
+}
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  #sales-pdf {
+    width: 210mm;
+    // height: 297mm; 
+    padding: 10mm;
+    margin: 0 auto;
+    box-shadow: none;
+
+    .header-space {
+      height: 50mm !important;
+    }
+
+    .party-section,
+    .summary-section,
+    .items-table {
+      page-break-inside: avoid;
+    }
+  }
+}

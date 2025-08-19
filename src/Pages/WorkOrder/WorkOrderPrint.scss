@@ -1,0 +1,292 @@
+#workorder-pdf {
+  width: 100%;
+  max-width: 210mm;
+  // min-height: 297mm;
+  padding: 10mm;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+  box-sizing: border-box;
+
+  @media print {
+    padding: 0;
+    margin: 0;
+    width: 210mm;
+    height: auto;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #000;
+
+    .header-left {
+      width: 60%;
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        color: #333;
+      }
+
+      p {
+        margin: 3px 0;
+        font-size: 12px;
+      }
+    }
+
+    .header-right {
+      width: 35%;
+      text-align: right;
+      flex-direction: column;
+      align-items: flex-end;
+
+      h2 {
+        margin: 0 0 10px 0;
+        font-size: 20px;
+        color: #333;
+        width: 100%;
+      }
+
+      .header-info {
+        border-collapse: collapse;
+        width: auto; // Changed from 100% to auto
+        margin-left: auto;
+
+        td {
+          padding: 3px 5px;
+          text-align: left;
+          white-space: nowrap;
+
+          &:first-child {
+            font-weight: bold;
+            padding-right: 5px;
+          }
+        }
+      }
+    }
+  }
+
+  .party-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 4%;
+
+    .party-card {
+      width: 48%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+
+      h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+      }
+
+      p {
+        margin: 5px 0;
+        word-break: break-word;
+      }
+    }
+  }
+
+  .po-info {
+    margin-bottom: 15px;
+
+    p {
+      margin: 5px 0;
+    }
+  }
+
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    table-layout: fixed;
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 5px;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    td {
+      vertical-align: top;
+
+      &:first-child {
+        width: 5%; // Reduced from 20px to percentage
+        text-align: center;
+        // padding: 8px 2px; 
+      }
+
+      &:nth-child(2) {
+        // Name column
+        width: 20%;
+        text-align: left;
+      }
+
+      &:nth-child(3) {
+        // Description column
+        width: 25%; // Reduced width
+      }
+
+      &:nth-child(4) {
+        // HSN column
+        width: 10%;
+      }
+
+      &:nth-child(5),
+      &:nth-child(6),
+      &:nth-child(7) {
+        width: 10%;
+        text-align: left;
+      }
+    }
+  }
+
+  .summary-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 4%;
+
+    .transport-details {
+      width: 48%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+
+      h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+      }
+
+      p {
+        margin: 5px 0;
+      }
+    }
+
+    .amount-details {
+      width: 48%;
+      box-sizing: border-box;
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+
+        td {
+          padding: 5px;
+          text-align: right;
+
+          &:first-child {
+            text-align: left;
+            font-weight: bold;
+          }
+        }
+
+        .total-row {
+          border-top: 1px solid #000;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+
+  .bank-details {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+
+    h4 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+
+    p {
+      margin: 5px 0;
+    }
+  }
+
+  .terms-section {
+    margin-bottom: 30px;
+    box-sizing: border-box;
+
+    h4 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+  }
+
+  .signature-section {
+    text-align: right;
+    margin-top: 50px;
+    box-sizing: border-box;
+
+    .signature-box {
+      display: inline-block;
+      text-align: center;
+      margin-top: 30px;
+
+      p {
+        margin: 5px 0;
+      }
+
+      .signature-line {
+        width: 200px;
+        height: 1px;
+        background: #000;
+        margin: 15px auto;
+      }
+    }
+  }
+}
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  #workorder-pdf {
+    width: 210mm;
+    // height: 297mm;
+    padding: 10mm;
+    margin: 0 auto;
+    box-shadow: none;
+
+    .header,
+    .party-section,
+    .summary-section {
+      page-break-inside: avoid;
+    }
+
+    .items-table {
+      page-break-inside: avoid;
+    }
+  }
+}
