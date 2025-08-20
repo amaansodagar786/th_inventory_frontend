@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Formik, Form, Field, FieldArray } from "formik";
 import * as Yup from "yup";
 import { toast, ToastContainer } from "react-toastify";
-import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash, FaEdit, FaSave } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash, FaEdit, FaSave, FaSync } from "react-icons/fa";
 import Navbar from "../../Components/Sidebar/Navbar";
 import html2pdf from "html2pdf.js";
 import PurchaseOrderPrint from "./PurchaseOrderPrint";
@@ -41,30 +41,64 @@ const PurchaseOrder = () => {
         return () => clearTimeout(handler);
     }, [searchTerm]);
 
+    // Function to enrich PO data with latest vendor and item details
+    const getEnrichedPO = async (poNumber) => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/po/get-enriched-po/${poNumber}`);
+            return response.data.data;
+        } catch (error) {
+            console.error("Error getting enriched PO:", error);
+            throw error;
+        }
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const vendorsRes = await axios.get(`${import.meta.env.VITE_API_URL}/vendors/get-vendors`);
-                const sortedVendors = vendorsRes.data.sort((a, b) =>
-                    new Date(b.createdAt || b.date || Date.now()) - new Date(a.createdAt || a.date || Date.now())
-                );
-                setVendors(sortedVendors);
+                console.log("Fetching data...");
 
-                const itemsRes = await axios.get(`${import.meta.env.VITE_API_URL}/items/get-items`);
-                const sortedItems = itemsRes.data.sort((a, b) =>
-                    new Date(b.createdAt || b.date || Date.now()) - new Date(a.createdAt || a.date || Date.now())
-                );
-                setItems(sortedItems);
+                const [vendorsRes, itemsRes, poRes] = await Promise.all([
+                    axios.get(`${import.meta.env.VITE_API_URL}/vendors/get-vendors`),
+                    axios.get(`${import.meta.env.VITE_API_URL}/items/get-items`),
+                    axios.get(`${import.meta.env.VITE_API_URL}/po/get-pos`)
+                ]);
 
-                const poRes = await axios.get(`${import.meta.env.VITE_API_URL}/po/get-pos`);
-                const sortedOrders = poRes.data.data.sort((a, b) => {
+                console.log("Vendors data:", vendorsRes.data);
+                console.log("Items data:", itemsRes.data);
+                console.log("POs data:", poRes.data);
+
+                setVendors(vendorsRes.data);
+                setItems(itemsRes.data);
+
+                // Get basic PO data first
+                const basicPOs = poRes.data.data || poRes.data;
+                console.log("Basic POs:", basicPOs);
+
+                // Enrich ALL POs for the table to show vendor names
+                const enrichedOrders = [];
+                for (const po of basicPOs) {
+                    try {
+                        const enrichedPO = await getEnrichedPO(po.poNumber);
+                        enrichedOrders.push(enrichedPO);
+                        console.log("Enriched PO:", enrichedPO);
+                    } catch (error) {
+                        console.error(`Failed to enrich PO ${po.poNumber}:`, error);
+                        enrichedOrders.push(po); // Fallback to basic PO
+                    }
+                }
+
+                const sortedOrders = enrichedOrders.sort((a, b) => {
                     const dateDiff = new Date(b.date) - new Date(a.date);
                     if (dateDiff !== 0) return dateDiff;
                     return b.poNumber.localeCompare(a.poNumber);
                 });
+
                 setOrders(sortedOrders);
+                console.log("Final orders:", sortedOrders);
+
             } catch (error) {
+                console.error("Failed to fetch data:", error);
                 toast.error("Failed to fetch data");
             } finally {
                 setIsLoading(false);
@@ -72,6 +106,19 @@ const PurchaseOrder = () => {
         };
         fetchData();
     }, []);
+
+
+    const handleRowClick = async (po) => {
+        try {
+            const enrichedPO = await getEnrichedPO(po.poNumber);
+            setSelectedPO(enrichedPO);
+        } catch (error) {
+            // Fallback: show the basic PO data if enrichment fails
+            setSelectedPO(po);
+            toast.error("Could not load updated details");
+        }
+    };
+
 
     const initialValues = {
         ownerGST: "24AAAFF2996A1Z6",
@@ -216,7 +263,11 @@ const PurchaseOrder = () => {
 
             if (res.data.success) {
                 toast.success("Purchase Order saved successfully!");
-                setOrders((prev) => [res.data.data, ...prev]);
+
+                // Enrich the new PO before adding to state
+                const enrichedPO = await getEnrichedPO(res.data.data.poNumber);
+                setOrders((prev) => [enrichedPO, ...prev]);
+
                 setShowForm(false);
                 resetForm();
             } else {
@@ -271,11 +322,15 @@ const PurchaseOrder = () => {
                 poData
             );
 
+            // Enrich the updated PO before updating state
+            const enrichedPO = await getEnrichedPO(updatedPO.poNumber);
+
             setOrders(prev =>
                 prev.map(po =>
-                    po.poNumber === updatedPO.poNumber ? response.data.data : po
+                    po.poNumber === updatedPO.poNumber ? enrichedPO : po
                 )
             );
+            setSelectedPO(enrichedPO);
             toast.success("Purchase Order updated successfully!");
         } catch (error) {
             console.error("Error updating purchase order:", error);
@@ -304,6 +359,7 @@ const PurchaseOrder = () => {
         const [isEditing, setIsEditing] = useState(false);
         const [editedPO, setEditedPO] = useState({});
         const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+        const [isRefreshing, setIsRefreshing] = useState(false);
 
         useEffect(() => {
             document.body.style.overflow = 'hidden';
@@ -317,6 +373,19 @@ const PurchaseOrder = () => {
                 setEditedPO({ ...po });
             }
         }, [po]);
+
+        const handleRefreshData = async () => {
+            setIsRefreshing(true);
+            try {
+                const refreshedPO = await getEnrichedPO(po.poNumber);
+                setEditedPO(refreshedPO);
+                toast.success("Data refreshed with latest vendor and item details");
+            } catch (error) {
+                toast.error("Failed to refresh data");
+            } finally {
+                setIsRefreshing(false);
+            }
+        };
 
         const handleInputChange = (e) => {
             const { name, value } = e.target;
@@ -573,6 +642,13 @@ const PurchaseOrder = () => {
                     <div className="modal-footer">
                         <button className="export-btn" onClick={onExport}>
                             <FaFileExport /> Export as PDF
+                        </button>
+                        <button
+                            className="refresh-btn"
+                            onClick={handleRefreshData}
+                            disabled={isRefreshing}
+                        >
+                            <FaSync /> {isRefreshing ? "Refreshing..." : "Refresh Data"}
                         </button>
                         <button
                             className={`update-btn ${isEditing ? 'save-btn' : ''}`}
@@ -866,7 +942,7 @@ const PurchaseOrder = () => {
                             {filteredOrders.map((po) => (
                                 <tr
                                     key={po.poNumber}
-                                    onClick={() => setSelectedPO(po)}
+                                    onClick={() => handleRowClick(po)}
                                     className={selectedPO?.poNumber === po.poNumber ? "selected" : ""}
                                 >
                                     <td>{po.poNumber}</td>
