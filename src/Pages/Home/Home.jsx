@@ -34,15 +34,9 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
-
-
-   useEffect(() => {
-      window.scrollTo(0, 0);
-    }, []);
-
-
-    
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Enhanced data processing with proper date handling
   const processChartData = (data, type) => {
@@ -129,10 +123,6 @@ const Home = () => {
   }, []);
 
   // Find work orders without sales
-  // const pendingWorkOrders = workOrders.filter(wo => {
-  //   return !salesData.some(sale => sale.poNumber === wo.poNumber);
-  // });
-
   const pendingWorkOrders = workOrders.filter(wo => {
     return !salesData.some(sale => sale.workOrderNumber === wo.workOrderNumber);
   });
@@ -165,17 +155,17 @@ const Home = () => {
     <div>
       <Navbar>
         <div className="dashboard-container">
-          <div className="dashboard-header">
+          {/* Centered Header */}
+          <div className="dashboard-header centered">
             <h1>Inventory Dashboard</h1>
             <p>Overview of your operations</p>
           </div>
-
 
           {/* Inventory Alerts */}
           <div className="inventory-alerts">
             <h3>Inventory Alerts</h3>
             <div className="alert-grid">
-              <div className="alert-section">
+              <div className="alert-section low-stock-alert">
                 <h4>
                   <FiAlertTriangle className="icon-warning" /> Low Stock
                 </h4>
@@ -194,7 +184,7 @@ const Home = () => {
                 </ul>
               </div>
 
-              <div className="alert-section">
+              <div className="alert-section out-of-stock-alert">
                 <h4>
                   <FiAlertTriangle className="icon-danger" /> Out of Stock
                 </h4>
@@ -213,12 +203,10 @@ const Home = () => {
             </div>
           </div>
 
-          
-
           {/* Key Metrics */}
           <div className="metrics-grid">
-            <div className="metric-card">
-              <FiDollarSign className="metric-icon sales" />
+            <div className="metric-card sales-metric">
+              <FiDollarSign className="metric-icon" />
               <div>
                 <h3>Total Sales</h3>
                 <p>
@@ -228,8 +216,8 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="metric-card">
-              <FiShoppingCart className="metric-icon purchases" />
+            <div className="metric-card purchases-metric">
+              <FiShoppingCart className="metric-icon" />
               <div>
                 <h3>Total Purchases</h3>
                 <p>
@@ -239,8 +227,8 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="metric-card">
-              <FiPackage className="metric-icon inventory" />
+            <div className="metric-card inventory-metric">
+              <FiPackage className="metric-icon" />
               <div>
                 <h3>Inventory Status</h3>
                 <p>{inventoryData.length} items</p>
@@ -250,8 +238,8 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="metric-card">
-              <FiTruck className="metric-icon production" />
+            <div className="metric-card production-metric">
+              <FiTruck className="metric-icon" />
               <div>
                 <h3>Work Orders</h3>
                 <p>{workOrders.length} total</p>
@@ -262,10 +250,9 @@ const Home = () => {
             </div>
           </div>
 
-
           {/* Pending Actions Section */}
           <div className="pending-actions">
-            <div className="pending-section">
+            <div className="pending-section work-orders-pending">
               <h3><FiClock /> Pending Work Orders</h3>
               <div className="pending-list">
                 {pendingWorkOrders.slice(0, 5).map(wo => (
@@ -282,7 +269,7 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="pending-section">
+            <div className="pending-section grns-pending">
               <h3><FiClock /> Pending GRNs</h3>
               <div className="pending-list">
                 {pendingGRNs.slice(0, 5).map(po => (
@@ -378,10 +365,6 @@ const Home = () => {
               </ResponsiveContainer>
             </div>
           </div>
-
-
-
-
         </div>
       </Navbar>
     </div>

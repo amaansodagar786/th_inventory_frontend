@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 // Image imports
 import user from "../../Assets/profile.png";
@@ -15,7 +15,6 @@ import { BsBell } from "react-icons/bs";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { RxCross1 } from "react-icons/rx";
 
-
 // CSS + Components
 import "./Navbar.css";
 import Menu from "../Menu/Menu";
@@ -25,19 +24,17 @@ const Navbar = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
 
-  // Simulate checking login status from localStorage
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
   }, []);
 
   const handleLogin = () => {
-    // Simulate login: In real app, redirect to login page
     navigate("/login");
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Clear token/session
+    localStorage.removeItem("token");
     setIsLoggedIn(false);
     navigate("/login");
   };
@@ -58,7 +55,6 @@ const Navbar = ({ children }) => {
 
   return (
     <>
-      {/* Side Bar */}
       <div id="sidebar" className={toggle ? "hide" : ""}>
         <div className="logo">
           <div className="logoBox">
@@ -69,7 +65,7 @@ const Navbar = ({ children }) => {
               />
             ) : (
               <>
-                <h2 className="logoText">Ferro Tube</h2>
+                <h2 className="logoText">Techorses</h2>
                 <RxCross1
                   className="menuIconHidden"
                   onClick={() => setToggle(true)}
@@ -79,7 +75,6 @@ const Navbar = ({ children }) => {
           </div>
         </div>
 
-        {/* Sidebar Menu */}
         <ul className="side-menu top">
           {menuData.map(({ icon, title, path }, i) => (
             <Menu Icon={icon} Title={title} path={path} key={i} />
@@ -90,7 +85,6 @@ const Navbar = ({ children }) => {
         </ul>
       </div>
 
-      {/* Top Bar */}
       <div id="content">
         <nav>
           <div>
@@ -98,31 +92,8 @@ const Navbar = ({ children }) => {
               className="menuIcon"
               onClick={() => setToggle(!toggle)}
             />
-
           </div>
           <div>
-            {/* <Link href="/" className="lang">
-              <LiaFlagUsaSolid /> EN
-            </Link>
-            <Link href="/" className="navIcon">
-              <CiSearch />
-            </Link>
-            <Link href="/" className="navIcon">
-              <PiShootingStarLight />
-            </Link>
-            <Link href="/" className="navIcon">
-              <PiLightbulbThin />
-            </Link>
-            <Link href="/" className="cart">
-              <CiShoppingBasket />
-              <span className="numCart number">2</span>
-            </Link>
-            <Link href="/" className="notification">
-              <BsBell />
-              <span className="num number">4</span>
-            </Link> */}
-
-            {/* <div> */}
             {!isLoggedIn ? (
               <button className="login-button" onClick={handleLogin}>
                 Login
