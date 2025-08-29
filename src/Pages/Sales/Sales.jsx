@@ -3,7 +3,7 @@ import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import html2pdf from "html2pdf.js";
 import { toast, ToastContainer } from "react-toastify";
-import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaFileCode } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaFileCode, FaUpload, FaSpinner } from "react-icons/fa";
 import Navbar from "../../Components/Sidebar/Navbar";
 import SalesPrint from "./SalesPrint";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,12 +12,18 @@ import axios from "axios";
 import * as XLSX from 'xlsx';
 import Select from 'react-select';
 
+const TAX_SLABS = [
+  { label: '0.1%', value: 0.1 },
+  { label: '5%', value: 5 },
+  { label: '12%', value: 12 },
+  { label: '18%', value: 18 },
+  { label: '28%', value: 28 },
+];
 
 const TERMS_CONDITIONS = `
 All orders are subject to acceptance by the seller.
 Prices are subject to change without notice.
 `;
-
 
 const SUPPLY_TYPES = [
   { label: "Outward", value: "O" },
@@ -37,7 +43,6 @@ const TRANS_TYPES = [
   { label: "Combination of 2 & 3", value: 4 }
 ];
 
-
 const Sales = () => {
   const [invoices, setInvoices] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -49,20 +54,18 @@ const Sales = () => {
   const [workOrders, setWorkOrders] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-
-
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showLoader, setShowLoader] = useState(false);
   const loaderTimeoutRef = useRef(null);
 
+  const [uploadingFiles, setUploadingFiles] = useState({});
 
+  const fileInputRefs = useRef({});
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-
 
   // Add debounce effect
   useEffect(() => {
@@ -132,7 +135,6 @@ const Sales = () => {
     });
   }, [debouncedSearch, invoices]);
 
-
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -182,6 +184,7 @@ const Sales = () => {
     poDate: "",
     vehicleNumber: "",
     receiver: {
+      companyName: "",
       name: "",
       gstin: "",
       address: "",
@@ -210,28 +213,27 @@ const Sales = () => {
       branch: "",
       ifsc: ""
     },
-    otherCharges: 0,
-    extraNote: "", // Add this
+    // otherCharges: 0, // Commented out as requested
+    extraNote: "",
+    taxSlab: "",
     includeTerms: false,
     selectedCustomer: null,
     packetForwardingPercent: 0,
     freightPercent: 0,
     inspectionPercent: 0,
+    tcsPercent: 0, // Added TCS charge
 
     ewayBill: {
       supplyType: "O",
       subSupplyType: 1,
       transType: 1,
       transDistance: 0,
-      // Other fields will be auto-populated
     }
   };
 
   const validationSchema = Yup.object().shape({
     invoiceDate: Yup.string().required("Invoice Date is required"),
     workOrderNumber: Yup.string().required("Work Order is required"),
-
-
     lrNumber: Yup.string().required("LR Number is required"),
     lrDate: Yup.string().required("LR Date is required"),
     vehicleNumber: Yup.string().required("Vehicle Number is required"),
@@ -239,6 +241,7 @@ const Sales = () => {
     transportMobile: Yup.string().required("Transporter Mobile is required"),
 
     receiver: Yup.object({
+      companyName: Yup.string().required("Company name required"),
       name: Yup.string().required("Receiver name required"),
       gstin: Yup.string().required("GSTIN required"),
       address: Yup.string().required("Address required"),
@@ -256,6 +259,9 @@ const Sales = () => {
       contact: Yup.string().required("Contact required"),
       email: Yup.string().email("Invalid email").required("Email required")
     }),
+    taxSlab: Yup.number()
+      .required("Tax slab is required")
+      .oneOf(TAX_SLABS.map(slab => slab.value), "Please select a valid tax slab"),
     items: Yup.array().of(
       Yup.object({
         name: Yup.string().required("Item name required"),
@@ -279,9 +285,6 @@ const Sales = () => {
       })
     )
   });
-
-
-
 
   const handleWorkOrderSelect = async (e, setFieldValue) => {
     const selectedWONumber = e.target.value;
@@ -333,17 +336,8 @@ const Sales = () => {
       setFieldValue("items", itemsWithRemainingQty);
 
       if (selectedWO.receiver) {
-        const matchingCustomer = customers.find(c =>
-          c.customerName === selectedWO.receiver.name
-        );
-
-        // Set the selected customer for the dropdown
-        setFieldValue("selectedCustomer", matchingCustomer ? {
-          value: matchingCustomer.customerName,
-          label: matchingCustomer.customerName,
-          customerData: matchingCustomer
-        } : null);
-
+        // Set receiver details including companyName
+        setFieldValue("receiver.companyName", selectedWO.receiver.companyName || "");
         setFieldValue("receiver.name", selectedWO.receiver.name || "");
         setFieldValue("receiver.gstin", selectedWO.receiver.gstin || "");
         setFieldValue("receiver.address", selectedWO.receiver.address || "");
@@ -361,7 +355,9 @@ const Sales = () => {
         setFieldValue("consignee.contact", selectedWO.receiver.contact || "");
         setFieldValue("consignee.email", selectedWO.receiver.email || "");
 
-
+        // Update GST type based on receiver's GSTIN
+        const isIntraState = selectedWO.receiver.gstin && selectedWO.receiver.gstin.startsWith("24");
+        setGstType(isIntraState ? "intra" : "inter");
       }
     } catch (error) {
       console.error("Work order selection error:", error);
@@ -369,29 +365,38 @@ const Sales = () => {
     }
   };
 
-  const calculateTotals = (items, otherCharges = 0, receiverGST = "", percentages = {}) => {
+  const calculateTotals = (items, otherCharges = 0, receiverGST = "", percentages = {}, taxSlab = 18) => {
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
-    // Calculate additional charges
+    // Calculate additional charges (Packet Forwarding, Freight, Inspection)
     const additionalCharges = {
       packetForwarding: percentages.packetForwardingPercent ? (subtotal * percentages.packetForwardingPercent) / 100 : 0,
       freight: percentages.freightPercent ? (subtotal * percentages.freightPercent) / 100 : 0,
-      inspection: percentages.inspectionPercent ? (subtotal * percentages.inspectionPercent) / 100 : 0
+      inspection: percentages.inspectionPercent ? (subtotal * percentages.inspectionPercent) / 100 : 0,
     };
 
+    // Calculate taxable amount (subtotal + additional charges)
     const taxableAmount = subtotal +
       additionalCharges.packetForwarding +
       additionalCharges.freight +
       additionalCharges.inspection;
 
-    // Fix: Properly check if receiver is from Gujarat (state code 24)
-    const isIntraState = receiverGST && receiverGST.startsWith("24");
+    const isIntraState = typeof receiverGST === 'string' && receiverGST.startsWith("24");
 
-    const cgst = isIntraState ? +(taxableAmount * 0.09).toFixed(2) : 0;
-    const sgst = isIntraState ? +(taxableAmount * 0.09).toFixed(2) : 0;
-    const igst = !isIntraState ? +(taxableAmount * 0.18).toFixed(2) : 0;
+    // Calculate GST based on selected tax slab
+    const taxRate = taxSlab;
+    const cgst = isIntraState ? +(taxableAmount * (taxRate / 2 / 100)).toFixed(2) : 0;
+    const sgst = isIntraState ? +(taxableAmount * (taxRate / 2 / 100)).toFixed(2) : 0;
+    const igst = !isIntraState ? +(taxableAmount * (taxRate / 100)).toFixed(2) : 0;
 
-    const total = +(taxableAmount + cgst + sgst + igst + Number(otherCharges || 0)).toFixed(2);
+    // Calculate total before TCS (taxable amount + GST)
+    const totalBeforeTCS = +(taxableAmount + cgst + sgst + igst).toFixed(2);
+
+    // Calculate TCS on the total amount including GST
+    const tcs = percentages.tcsPercent ? +(totalBeforeTCS * percentages.tcsPercent / 100).toFixed(2) : 0;
+
+    // Final total including TCS
+    const total = +(totalBeforeTCS + tcs).toFixed(2);
 
     return {
       subtotal,
@@ -399,6 +404,7 @@ const Sales = () => {
       packetForwarding: additionalCharges.packetForwarding,
       freight: additionalCharges.freight,
       inspection: additionalCharges.inspection,
+      tcs,
       taxableAmount,
       cgst,
       sgst,
@@ -407,9 +413,138 @@ const Sales = () => {
       packetForwardingPercent: percentages.packetForwardingPercent,
       freightPercent: percentages.freightPercent,
       inspectionPercent: percentages.inspectionPercent,
-      isIntraState // Add this to use in the form display
+      tcsPercent: percentages.tcsPercent,
+      isIntraState,
+      taxSlab
     };
   };
+
+  const generateEInvoiceJSON = (invoice) => {
+    // Helper: format date DD/MM/YYYY
+    const formatDate = (dateString) => {
+      if (!dateString) return "";
+      const [year, month, day] = dateString.split("-");
+      return `${day}/${month}/${year}`;
+    };
+
+    // 1. Subtotal (items only)
+    const subtotal = invoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+    // 2. Extra charges
+    const additionalCharges = {
+      packetForwarding: invoice.packetForwardingPercent ? (subtotal * invoice.packetForwardingPercent) / 100 : 0,
+      freight: invoice.freightPercent ? (subtotal * invoice.freightPercent) / 100 : 0,
+      inspection: invoice.inspectionPercent ? (subtotal * invoice.inspectionPercent) / 100 : 0,
+    };
+    const totalCharges = additionalCharges.packetForwarding + additionalCharges.freight + additionalCharges.inspection;
+
+    // 3. GST calculation (on subtotal only)
+    const isIntraState = invoice.receiver.gstin && invoice.receiver.gstin.startsWith("24");
+    const taxRate = invoice.taxSlab;
+
+    const cgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
+    const sgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
+    const igst = !isIntraState ? +(subtotal * (taxRate / 100)).toFixed(2) : 0;
+
+    // 4. TCS (on subtotal + GST)
+    const baseWithGST = subtotal + cgst + sgst + igst;
+    const tcs = invoice.tcsPercent ? +(baseWithGST * invoice.tcsPercent / 100).toFixed(2) : 0;
+
+    // 5. Other charges = additional charges + TCS
+    const othChrg = +(totalCharges + tcs).toFixed(2);
+
+    // 6. Final total
+    const total = +(subtotal + cgst + sgst + igst + othChrg).toFixed(2);
+
+    // 7. Item list (AssAmt = TotAmt - Discount)
+    const itemList = invoice.items.map((item, index) => {
+      const itemTotal = item.quantity * item.unitPrice;
+      const itemAssAmt = itemTotal; // ✅ must equal TotAmt - Discount
+
+      const itemCgst = isIntraState ? +(itemAssAmt * (taxRate / 2 / 100)).toFixed(2) : 0;
+      const itemSgst = isIntraState ? +(itemAssAmt * (taxRate / 2 / 100)).toFixed(2) : 0;
+      const itemIgst = !isIntraState ? +(itemAssAmt * (taxRate / 100)).toFixed(2) : 0;
+
+      return {
+        "SlNo": (index + 1).toString(),
+        "PrdDesc": item.description || item.name,
+        "IsServc": "N",
+        "HsnCd": item.hsn || "",
+        "Qty": item.quantity,
+        "Unit": item.units || "NOS",
+        "UnitPrice": item.unitPrice,
+        "TotAmt": itemTotal,
+        "Discount": 0,
+        "PreTaxVal": 0,
+        "AssAmt": itemAssAmt,   // ✅ matches TotAmt
+        "GstRt": taxRate,
+        "IgstAmt": itemIgst,
+        "CgstAmt": itemCgst,
+        "SgstAmt": itemSgst,
+        "OthChrg": 0,
+        "TotItemVal": itemAssAmt + itemIgst + itemCgst + itemSgst
+      };
+    });
+
+    // 8. Invoice totals
+    const valDtls = {
+      "AssVal": +subtotal.toFixed(2),  // ✅ only subtotal
+      "IgstVal": igst,
+      "CgstVal": cgst,
+      "SgstVal": sgst,
+      "Discount": 0,
+      "OthChrg": othChrg,              // ✅ charges + TCS
+      "TotInvVal": total
+    };
+
+    // 9. Return JSON
+    return [
+      {
+        "Version": "1.1",
+        "TranDtls": {
+          "TaxSch": "GST",
+          "SupTyp": "B2B",
+          "IgstOnIntra": "N"
+        },
+        "DocDtls": {
+          "Typ": "INV",
+          "No": invoice.invoiceNumber,
+          "Dt": formatDate(invoice.invoiceDate)
+        },
+        "SellerDtls": {
+          "Gstin": "24AAAFF2996A1ZS",
+          "LglNm": "FERRO TUBE AND FORGE INDUSTRIES",
+          "TrdNm": "FERRO TUBE AND FORGE INDUSTRIES",
+          "Addr1": "123 MAIN STREET",
+          "Loc": "VADODARA",
+          "Pin": 391760,
+          "Stcd": "24"
+        },
+        "BuyerDtls": {
+          "Gstin": invoice.receiver.gstin,
+          "LglNm": invoice.receiver.companyName || invoice.receiver.name,
+          "TrdNm": invoice.receiver.name,
+          "Pos": invoice.receiver.gstin.substring(0, 2),
+          "Addr1": invoice.receiver.address,
+          "Loc": invoice.receiver.city || "VADODARA",
+          "Pin": parseInt(invoice.receiver.pincode) || 391760,
+          "Stcd": invoice.receiver.gstin.substring(0, 2),
+          "Ph": invoice.receiver.contact,
+          "Em": invoice.receiver.email
+        },
+        "ValDtls": valDtls,
+        "ItemList": itemList
+      }
+    ];
+  };
+
+
+
+
+
+
+
+
 
   const handleSubmit = async (values, { resetForm }) => {
     if (isSubmitting) return;
@@ -429,22 +564,31 @@ const Sales = () => {
     }
 
     try {
-      const numericOtherCharges = Number(values.otherCharges || 0);
+      // Commented out other charges as requested
+      // const numericOtherCharges = Number(values.otherCharges || 0);
       const totals = calculateTotals(
         values.items,
-        values.otherCharges,
-        values.receiver.gstin,
+        0,
+        values.receiver.gstin || "", // Ensure this is a string
         {
           packetForwardingPercent: values.packetForwardingPercent,
           freightPercent: values.freightPercent,
-          inspectionPercent: values.inspectionPercent
-        }
+          inspectionPercent: values.inspectionPercent,
+          tcsPercent: values.tcsPercent
+        },
+        values.taxSlab
       );
 
-      const totalOtherCharges = numericOtherCharges +
-        totals.packetForwarding +
+      // Commented out other charges as requested
+      // const totalOtherCharges = numericOtherCharges +
+      //   totals.packetForwarding +
+      //   totals.freight +
+      //   totals.inspection;
+
+      const totalOtherCharges = totals.packetForwarding +
         totals.freight +
-        totals.inspection;
+        totals.inspection +
+        totals.tcs; // Added TCS
 
       const mainHsnItem = values.items.reduce((maxItem, currentItem) =>
         (currentItem.quantity * currentItem.unitPrice) > (maxItem.quantity * maxItem.unitPrice) ? currentItem : maxItem
@@ -501,8 +645,8 @@ const Sales = () => {
           quantity: item.quantity,
           qtyUnit: item.units,
           taxableAmount: item.quantity * item.unitPrice,
-          sgstRate: isIntraState ? 9 : 0,
-          cgstRate: isIntraState ? 9 : 0,
+          sgstRate: isIntraState ? values.taxSlab / 2 : 0, // Use actual tax rates
+          cgstRate: isIntraState ? values.taxSlab / 2 : 0,
           igstRate: isIntraState ? 0 : 18,
           cessRate: 0,
           cessNonAdvol: 0
@@ -520,12 +664,16 @@ const Sales = () => {
       };
 
       const newInvoice = {
-        ...values, otherCharges: numericOtherCharges, ...totals,
+        ...values,
+        // otherCharges: numericOtherCharges, // Commented out
+        ...totals,
         terms: values.includeTerms ? TERMS_CONDITIONS : "",
+        extraNote: values.extraNote,
         ewayBill: ewayBillData,
         packetForwarding: totals.additionalCharges.packetForwarding,
         freight: totals.additionalCharges.freight,
-        inspection: totals.additionalCharges.inspection
+        inspection: totals.additionalCharges.inspection,
+        tcs: totals.additionalCharges.tcs // Added TCS
       };
 
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/sales/create-sale`, newInvoice);
@@ -547,90 +695,66 @@ const Sales = () => {
     }
 
     if (isExporting) return;
-
     setIsExporting(true);
 
     try {
-      let pdfUrl = selectedInvoice.pdfUrl;
+      const element = document.getElementById("sales-pdf");
 
-      // If PDF already exists, use its URL for QR
-      if (pdfUrl) {
-        setQRCodeUrl(pdfUrl);
-        setTimeout(() => {
-          _exportPDFWithQR(pdfUrl);
-          setIsExporting(false);
-        }, 500);
-        return;
-      }
+      console.log("Starting PDF export...");
+      console.log("Selected invoice image URL:", selectedInvoice.imageUrl);
 
-      // 1. First generate PDF without QR
-      setQRCodeUrl("");
-      setTimeout(async () => {
-        try {
-          const element = document.getElementById("sales-pdf");
-          const pdfBlob = await html2pdf().from(element)
-            .set({
-              margin: 0,
-              filename: `${selectedInvoice.invoiceNumber}_${selectedInvoice.receiver.name.replace(/\s+/g, '_')}.pdf`,
-              image: { type: "jpeg", quality: 0.98 },
-              html2canvas: { scale: 2 },
-              jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            })
-            .outputPdf("blob");
+      // Wait for all images inside element
+      const images = element.getElementsByTagName("img");
+      const imageLoadPromises = Array.from(images).map((img) => {
+        return new Promise((resolve) => {
+          if (img.complete) {
+            resolve();
+          } else {
+            img.onload = resolve;
+            img.onerror = resolve;
+          }
+        });
+      });
 
-          // 2. Get S3 presigned URL
-          const res = await axios.post(`${import.meta.env.VITE_API_URL}/s3/po-presigned-url`, {
-            poNumber: `${selectedInvoice.invoiceNumber}_${selectedInvoice.receiver.name.replace(/\s+/g, '_')}`,
-          });
+      await Promise.race([
+        Promise.all(imageLoadPromises),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
 
-          // 3. Upload to S3
-          await fetch(res.data.uploadUrl, {
-            method: "PUT",
-            body: pdfBlob,
-            headers: { "Content-Type": "application/pdf" },
-          });
+      // Generate PDF with margins (header/footer spacing)
+      await html2pdf()
+        .from(element)
+        .set({
+          margin: [25, 10, 5, 10],
+          // top=40mm, right=10mm, bottom=25mm, left=10mm
+          // -> leaves blank space at top & bottom on EVERY PAGE
 
-          // 4. Update sales record with PDF URL
-          await axios.put(`${import.meta.env.VITE_API_URL}/sales/update-sale/${selectedInvoice.invoiceNumber}`, {
-            pdfUrl: res.data.fileUrl,
-          });
+          filename: `${selectedInvoice.invoiceNumber}_${selectedInvoice.receiver.name.replace(
+            /\s+/g,
+            "_"
+          )}.pdf`,
 
-          // 5. Get updated invoice
-          const invoiceRes = await axios.get(`${import.meta.env.VITE_API_URL}/sales/get-sale/${selectedInvoice.invoiceNumber}`);
-          pdfUrl = invoiceRes.data.data.pdfUrl;
-          setQRCodeUrl(pdfUrl);
-          setSelectedInvoice(invoiceRes.data.data);
+          image: { type: "jpeg", quality: 0.98 },
 
-          // Final export with QR
-          setTimeout(() => {
-            _exportPDFWithQR(pdfUrl);
-            setIsExporting(false);
-          }, 500);
-        } catch (error) {
-          console.error("Export error:", error);
-          toast.error("Failed to export PDF");
-          setIsExporting(false);
-        }
-      }, 400);
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+          },
+
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .save();
     } catch (error) {
-      console.error("Export error:", error);
       toast.error("Failed to export PDF");
+      console.error("Export error:", error);
+    } finally {
       setIsExporting(false);
     }
   };
 
-  function _exportPDFWithQR(pdfUrl) {
-    const element = document.getElementById("sales-pdf");
-    html2pdf().from(element)
-      .set({
-        margin: 0,
-        filename: `${selectedInvoice.invoiceNumber}_${selectedInvoice.receiver.name.replace(/\s+/g, '_')}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      })
-      .save();
-  }
+
+
 
   const handleExportExcel = () => {
     if (invoices.length === 0) {
@@ -655,89 +779,73 @@ const Sales = () => {
   };
 
 
-  // const handleExportJSON = () => {
-  //   if (!invoice) return;
+  const handleFileUpload = async (invoice, event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  //   const ewayData = {
-  //     version: "1.0.0621",
-  //     billLists: [{
-  //       userGstin: "24AAAFF2996A1ZS",
-  //       supplyType: invoice.ewayBill.supplyType,
-  //       subSupplyType: invoice.ewayBill.subSupplyType,
-  //       subSupplyDesc: "",
-  //       docType: "INV",
-  //       docNo: invoice.invoiceNumber,
-  //       docDate: formatDate(invoice.invoiceDate),
-  //       transType: invoice.ewayBill.transType,
-  //       fromGstin: invoice.ewayBill.fromGstin,
-  //       fromTrdName: invoice.ewayBill.fromTrdName,
-  //       fromAddr1: invoice.ewayBill.fromAddr1,
-  //       fromAddr2: invoice.ewayBill.fromAddr2,
-  //       fromPlace: invoice.ewayBill.fromPlace,
-  //       fromPincode: parseInt(invoice.ewayBill.fromPincode),
-  //       fromStateCode: invoice.ewayBill.fromStateCode,
-  //       actualFromStateCode: invoice.ewayBill.actualFromStateCode,
-  //       toGstin: invoice.ewayBill.toGstin,
-  //       toTrdName: invoice.ewayBill.toTrdName,
-  //       toAddr1: invoice.ewayBill.toAddr1,
-  //       toAddr2: invoice.ewayBill.toAddr2,
-  //       toPlace: invoice.ewayBill.toPlace,
-  //       toPincode: parseInt(invoice.ewayBill.toPincode),
-  //       toStateCode: invoice.ewayBill.toStateCode,
-  //       actualToStateCode: invoice.ewayBill.actualToStateCode,
-  //       totalValue: invoice.subtotal,
-  //       cgstValue: invoice.cgst || 0,
-  //       sgstValue: invoice.sgst || 0,
-  //       igstValue: invoice.igst || 0,
-  //       cessValue: 0,
-  //       TotNonAdvolVal: 0,
-  //       OthValue: invoice.otherCharges || 0,
-  //       totInvValue: invoice.total,
-  //       transMode: invoice.ewayBill.transMode,
-  //       transDistance: invoice.ewayBill.transDistance,
-  //       transporterName: invoice.transporter || "",
-  //       transporterId: "",
-  //       transDocNo: invoice.lrNumber || "",
-  //       transDocDate: invoice.lrDate ? formatDate(invoice.lrDate) : "",
-  //       vehicleNo: invoice.vehicleNumber || "",
-  //       vehicleType: "R",
-  //       mainHsnCode: invoice.ewayBill.mainHsnCode,
-  //       itemList: invoice.ewayBill.itemList.map(item => ({
-  //         itemNo: item.itemNo,
-  //         productName: item.productName,
-  //         productDesc: item.productDesc || "",
-  //         hsnCode: item.hsnCode,
-  //         quantity: item.quantity,
-  //         qtyUnit: item.qtyUnit,
-  //         taxableAmount: item.taxableAmount,
-  //         sgstRate: item.sgstRate,
-  //         cgstRate: item.cgstRate,
-  //         igstRate: item.igstRate,
-  //         cessRate: 0,
-  //         cessNonAdvol: 0
-  //       }))
-  //     }]
-  //   };
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
 
-  //   // Create and trigger download
-  //   const blob = new Blob([JSON.stringify(ewayData, null, 2)], { type: 'application/json' });
-  //   const url = URL.createObjectURL(blob);
-  //   const a = document.createElement('a');
-  //   a.href = url;
-  //   a.download = `eWayBill_${invoice.invoiceNumber}.json`;
-  //   document.body.appendChild(a);
-  //   a.click();
-  //   document.body.removeChild(a);
-  //   URL.revokeObjectURL(url);
-  // };
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
 
-  // function formatDate(dateString) {
-  //   if (!dateString) return "";
-  //   const [year, month, day] = dateString.split('-');
-  //   return `${day}/${month}/${year}`;
-  // }
+    setUploadingFiles(prev => ({ ...prev, [invoice.invoiceNumber]: true }));
 
-  // Add this component near the top of your Sales.js file
+    try {
+      // 1. Get presigned URL from backend
+      const presignedResponse = await axios.post(
+        `${import.meta.env.VITE_API_URL}/s3/sales-presigned-url`,
+        {
+          invoiceNumber: invoice.invoiceNumber,
+          fileType: file.type
+        }
+      );
+
+      const { uploadUrl, fileUrl } = presignedResponse.data;
+
+      // 2. Upload file to S3
+      await axios.put(uploadUrl, file, {
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      // 3. Save image URL to database
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/sales/update-sale-image/${invoice.invoiceNumber}`,
+        { imageUrl: fileUrl }
+      );
+
+      // 4. Update local state
+      setInvoices(prev => prev.map(inv =>
+        inv.invoiceNumber === invoice.invoiceNumber
+          ? { ...inv, imageUrl: fileUrl }
+          : inv
+      ));
+
+      if (selectedInvoice?.invoiceNumber === invoice.invoiceNumber) {
+        setSelectedInvoice(prev => ({ ...prev, imageUrl: fileUrl }));
+      }
+
+      toast.success('Image uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingFiles(prev => ({ ...prev, [invoice.invoiceNumber]: false }));
+      // Reset file input
+      if (fileInputRefs.current[invoice.invoiceNumber]) {
+        fileInputRefs.current[invoice.invoiceNumber].value = '';
+      }
+    }
+  };
+
 
 
   const InvoiceModal = ({ invoice, onClose, onExport }) => {
@@ -748,86 +856,109 @@ const Sales = () => {
       };
     }, []);
 
+    // const handleExportJSON = () => {
+    //   if (!invoice) return;
+
+    //   const ewayData = {
+    //     version: "1.0.0621",
+    //     billLists: [{
+    //       userGstin: "24AAAFF2996A1ZS",
+    //       supplyType: invoice.ewayBill.supplyType,
+    //       subSupplyType: invoice.ewayBill.subSupplyType,
+    //       subSupplyDesc: "",
+    //       docType: "INV",
+    //       docNo: invoice.invoiceNumber,
+    //       docDate: formatDate(invoice.invoiceDate),
+    //       transType: invoice.ewayBill.transType,
+    //       fromGstin: invoice.ewayBill.fromGstin,
+    //       fromTrdName: invoice.ewayBill.fromTrdName,
+    //       fromAddr1: invoice.ewayBill.fromAddr1,
+    //       fromAddr2: invoice.ewayBill.fromAddr2 || "",
+    //       fromPlace: invoice.ewayBill.fromPlace,
+    //       fromPincode: parseInt(invoice.ewayBill.fromPincode),
+    //       fromStateCode: invoice.ewayBill.fromStateCode,
+    //       actualFromStateCode: invoice.ewayBill.actualFromStateCode,
+    //       toGstin: invoice.ewayBill.toGstin,
+    //       toTrdName: invoice.ewayBill.toTrdName,
+    //       toAddr1: invoice.ewayBill.toAddr1,
+    //       toAddr2: invoice.ewayBill.toAddr2 || "",
+    //       toPlace: invoice.ewayBill.toPlace,
+    //       toPincode: parseInt(invoice.ewayBill.toPincode),
+    //       toStateCode: invoice.ewayBill.toStateCode,
+    //       actualToStateCode: invoice.ewayBill.actualToStateCode,
+    //       totalValue: invoice.subtotal,
+    //       cgstValue: invoice.cgst || 0,
+    //       sgstValue: invoice.sgst || 0,
+    //       igstValue: invoice.igst || 0,
+    //       cessValue: 0,
+    //       TotNonAdvolVal: 0,
+    //       OthValue: (invoice.packetForwarding || 0) +
+    //         (invoice.freight || 0) +
+    //         (invoice.inspection || 0) +
+    //         (invoice.tcs || 0), // Added TCS
+    //       totInvValue: invoice.total,
+    //       transMode: invoice.ewayBill.transMode || 1,
+    //       transDistance: invoice.ewayBill.transDistance,
+    //       transporterName: invoice.transporter || "",
+    //       transporterId: "",
+    //       transDocNo: invoice.lrNumber || "",
+    //       transDocDate: invoice.lrDate ? formatDate(invoice.lrDate) : "",
+    //       vehicleNo: invoice.vehicleNumber || "",
+    //       vehicleType: "R",
+    //       mainHsnCode: invoice.ewayBill.mainHsnCode,
+    //       itemList: invoice.ewayBill.itemList.map(item => ({
+    //         itemNo: item.itemNo,
+    //         productName: item.productName,
+    //         productDesc: item.productDesc || "",
+    //         hsnCode: item.hsnCode,
+    //         quantity: item.quantity,
+    //         qtyUnit: item.qtyUnit,
+    //         taxableAmount: item.taxableAmount,
+    //         sgstRate: item.sgstRate,
+    //         cgstRate: item.cgstRate,
+    //         igstRate: item.igstRate,
+    //         cessRate: 0,
+    //         cessNonAdvol: 0
+    //       }))
+    //     }]
+    //   };
+
+    //   // Create and trigger download
+    //   const blob = new Blob([JSON.stringify(ewayData, null, 2)], { type: 'application/json' });
+    //   const url = URL.createObjectURL(blob);
+    //   const a = document.createElement('a');
+    //   a.href = url;
+    //   a.download = `eWayBill_${invoice.invoiceNumber}.json`;
+    //   document.body.appendChild(a);
+    //   a.click();
+    //   document.body.removeChild(a);
+    //   URL.revokeObjectURL(url);
+    // };
+
+
+
+    // Helper function to format date as DD/MM/YYYY
+
+
+
     const handleExportJSON = () => {
       if (!invoice) return;
 
-      const ewayData = {
-        version: "1.0.0621",
-        billLists: [{
-          userGstin: "24AAAFF2996A1ZS",
-          supplyType: invoice.ewayBill.supplyType,
-          subSupplyType: invoice.ewayBill.subSupplyType,
-          subSupplyDesc: "",
-          docType: "INV",
-          docNo: invoice.invoiceNumber,
-          docDate: formatDate(invoice.invoiceDate),
-          transType: invoice.ewayBill.transType,
-          fromGstin: invoice.ewayBill.fromGstin,
-          fromTrdName: invoice.ewayBill.fromTrdName,
-          fromAddr1: invoice.ewayBill.fromAddr1,
-          fromAddr2: invoice.ewayBill.fromAddr2 || "",
-          fromPlace: invoice.ewayBill.fromPlace,
-          fromPincode: parseInt(invoice.ewayBill.fromPincode),
-          fromStateCode: invoice.ewayBill.fromStateCode,
-          actualFromStateCode: invoice.ewayBill.actualFromStateCode,
-          toGstin: invoice.ewayBill.toGstin,
-          toTrdName: invoice.ewayBill.toTrdName,
-          toAddr1: invoice.ewayBill.toAddr1,
-          toAddr2: invoice.ewayBill.toAddr2 || "",
-          toPlace: invoice.ewayBill.toPlace,
-          toPincode: parseInt(invoice.ewayBill.toPincode),
-          toStateCode: invoice.ewayBill.toStateCode,
-          actualToStateCode: invoice.ewayBill.actualToStateCode,
-          totalValue: invoice.subtotal,
-          cgstValue: invoice.cgst || 0,
-          sgstValue: invoice.sgst || 0,
-          igstValue: invoice.igst || 0,
-          cessValue: 0,
-          TotNonAdvolVal: 0,
-          OthValue: invoice.otherCharges +
-            (invoice.packetForwarding || 0) +
-            (invoice.freight || 0) +
-            (invoice.inspection || 0),
-          totInvValue: invoice.total,
-          transMode: invoice.ewayBill.transMode || 1,
-          transDistance: invoice.ewayBill.transDistance,
-          transporterName: invoice.transporter || "",
-          transporterId: "",
-          transDocNo: invoice.lrNumber || "",
-          transDocDate: invoice.lrDate ? formatDate(invoice.lrDate) : "",
-          vehicleNo: invoice.vehicleNumber || "",
-          vehicleType: "R",
-          mainHsnCode: invoice.ewayBill.mainHsnCode,
-          itemList: invoice.ewayBill.itemList.map(item => ({
-            itemNo: item.itemNo,
-            productName: item.productName,
-            productDesc: item.productDesc || "",
-            hsnCode: item.hsnCode,
-            quantity: item.quantity,
-            qtyUnit: item.qtyUnit,
-            taxableAmount: item.taxableAmount,
-            sgstRate: item.sgstRate,
-            cgstRate: item.cgstRate,
-            igstRate: item.igstRate,
-            cessRate: 0,
-            cessNonAdvol: 0
-          }))
-        }]
-      };
+      const eInvoiceData = generateEInvoiceJSON(invoice);
 
       // Create and trigger download
-      const blob = new Blob([JSON.stringify(ewayData, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(eInvoiceData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `eWayBill_${invoice.invoiceNumber}.json`;
+      a.download = `eInvoice_${invoice.invoiceNumber}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     };
 
-    // Helper function to format date as DD/MM/YYYY
+
     const formatDate = (dateString) => {
       if (!dateString) return "";
       const [year, month, day] = dateString.split('-');
@@ -847,7 +978,9 @@ const Sales = () => {
       freight: invoice.freightPercent ?
         (invoice.subtotal * invoice.freightPercent) / 100 : 0,
       inspection: invoice.inspectionPercent ?
-        (invoice.subtotal * invoice.inspectionPercent) / 100 : 0
+        (invoice.subtotal * invoice.inspectionPercent) / 100 : 0,
+      tcs: invoice.tcsPercent ? // Added TCS
+        (invoice.subtotal * invoice.tcsPercent) / 100 : 0
     };
 
     const isIntraState = invoice.receiver.gstin?.startsWith("24");
@@ -1004,57 +1137,6 @@ const Sales = () => {
                 <span className="detail-value">{invoice.transportMobile || 'N/A'}</span>
               </div>
 
-              {/* Bank Details */}
-              {/* <div className="section-header">Bank Details</div>
-              <div className="detail-row">
-                <span className="detail-label">Bank Name:</span>
-                <span className="detail-value">{invoice.bank?.name || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Account No:</span>
-                <span className="detail-value">{invoice.bank?.account || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Branch:</span>
-                <span className="detail-value">{invoice.bank?.branch || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">IFSC:</span>
-                <span className="detail-value">{invoice.bank?.ifsc || 'N/A'}</span>
-              </div> */}
-
-
-              {/* {invoice.ewayBill && (
-                <>
-                  <div className="section-header">e-Way Bill Details</div>
-                  <div className="detail-row">
-                    <span className="detail-label">Supply Type:</span>
-                    <span className="detail-value">
-                      {invoice.ewayBill.supplyType === "O" ? "Outward" : "Inward"}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Sub Supply Type:</span>
-                    <span className="detail-value">
-                      {invoice.ewayBill.subSupplyType === 1 ? "Supply" :
-                        invoice.ewayBill.subSupplyType === 3 ? "Export" : "Job Work"}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Transport Type:</span>
-                    <span className="detail-value">
-                      {invoice.ewayBill.transType === 1 ? "Regular" :
-                        invoice.ewayBill.transType === 2 ? "Bill To - Ship To" :
-                          invoice.ewayBill.transType === 3 ? "Bill From - Dispatch From" : "Combination"}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Distance (km):</span>
-                    <span className="detail-value">{invoice.ewayBill.transDistance}</span>
-                  </div>
-                </>
-              )} */}
-
               {invoice.extraNote && (
                 <>
                   <div className="section-header">Additional Notes</div>
@@ -1069,6 +1151,24 @@ const Sales = () => {
                   <div className="section-header">Terms & Conditions</div>
                   <div className="detail-row">
                     <pre className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{invoice.terms}</pre>
+                  </div>
+                </>
+              )}
+
+              {invoice.imageUrl && (
+                <>
+                  <div className="section-header">Uploaded Image</div>
+                  <div className="detail-row">
+                    <img
+                      src={invoice.imageUrl}
+                      alt="Invoice attachment"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '300px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px'
+                      }}
+                    />
                   </div>
                 </>
               )}
@@ -1100,31 +1200,38 @@ const Sales = () => {
                     <span>₹{totals.inspection.toFixed(2)}</span>
                   </div>
                 )}
+                {totals.tcs > 0 && ( // Added TCS
+                  <div className="total-row">
+                    <span>TCS ({invoice.tcsPercent}%):</span>
+                    <span>₹{totals.tcs.toFixed(2)}</span>
+                  </div>
+                )}
 
                 {/* GST calculations */}
                 {isIntraState ? (
                   <>
                     <div className="total-row">
-                      <span>CGST (9%):</span>
+                      <span>CGST ({invoice.taxSlab / 2}%):</span>
                       <span>₹{totals.cgst.toFixed(2)}</span>
                     </div>
                     <div className="total-row">
-                      <span>SGST (9%):</span>
+                      <span>SGST ({invoice.taxSlab / 2}%):</span>
                       <span>₹{totals.sgst.toFixed(2)}</span>
                     </div>
                   </>
                 ) : (
                   <div className="total-row">
-                    <span>IGST (18%):</span>
+                    <span>IGST ({invoice.taxSlab}%):</span>
                     <span>₹{totals.igst.toFixed(2)}</span>
                   </div>
                 )}
-                {invoice.otherCharges > 0 && (
+                {/* Commented out other charges as requested */}
+                {/* {invoice.otherCharges > 0 && (
                   <div className="total-row">
                     <span>Other Charges:</span>
                     <span>₹{invoice.otherCharges.toFixed(2)}</span>
                   </div>
-                )}
+                )} */}
                 <div className="total-row grand-total">
                   <span>Total:</span>
                   <span>₹{totals.total.toFixed(2)}</span>
@@ -1160,6 +1267,7 @@ const Sales = () => {
   };
 
 
+
   return (
     <Navbar>
       <ToastContainer position="top-center" autoClose={3000} />
@@ -1177,19 +1285,6 @@ const Sales = () => {
               />
             </div>
             <div className="page-actions">
-              {/* <button
-                className="export-btn"
-                onClick={handleExportPDF}
-                disabled={isExporting || !selectedInvoice}
-              >
-                {isExporting ? (
-                  <span>Exporting...</span>
-                ) : (
-                  <>
-                    <FaFileExport /> Export
-                  </>
-                )}
-              </button> */}
               <button className="export-all-btn" onClick={handleExportExcel}>
                 <FaFileExcel /> Export All
               </button>
@@ -1214,13 +1309,16 @@ const Sales = () => {
 
                 const totals = calculateTotals(
                   values.items,
-                  values.otherCharges,
+                  0,
+                  // values.otherCharges, // Commented out
                   values.receiver.gstin,
                   {
                     packetForwardingPercent: values.packetForwardingPercent,
                     freightPercent: values.freightPercent,
-                    inspectionPercent: values.inspectionPercent
-                  }
+                    inspectionPercent: values.inspectionPercent,
+                    tcsPercent: values.tcsPercent // Added TCS
+                  },
+                  values.taxSlab
                 );
 
                 useEffect(() => {
@@ -1244,10 +1342,6 @@ const Sales = () => {
                 return (
                   <Form>
                     <div className="form-group-row">
-                      {/* <div className="field-wrapper">
-                        <label>Invoice Number</label>
-                        <Field name="invoiceNumber" readOnly placeholder="Generated After Submission" />
-                      </div> */}
                       <div className="field-wrapper">
                         <label>Invoice Date</label>
                         <Field name="invoiceDate" type="date" />
@@ -1276,7 +1370,6 @@ const Sales = () => {
                         />
                       </div>
 
-
                       <div className="field-wrapper">
                         <label>PO Number</label>
                         <Field name="poNumber" placeholder="PO Number" />
@@ -1287,13 +1380,19 @@ const Sales = () => {
                         <label>PO Date</label>
                         <Field name="poDate" type="date" />
                       </div>
-
-
                     </div>
 
                     <h3>Receiver (Billed To)</h3>
                     <div className="form-group-row">
                       <div className="field-wrapper">
+                        <label>Company Name</label>
+                        <Field name="receiver.companyName" placeholder="Company Name" />
+                      </div>
+                      <div className="field-wrapper">
+                        <label>Contact Person</label>
+                        <Field name="receiver.name" placeholder="Contact Person Name" />
+                      </div>
+                      {/* <div className="field-wrapper">
                         <label>Name</label>
                         <Select
                           className="react-select-container"
@@ -1319,13 +1418,17 @@ const Sales = () => {
                               setFieldValue("consignee.address", selectedCustomer.address);
                               setFieldValue("consignee.contact", selectedCustomer.contactNumber);
                               setFieldValue("consignee.email", selectedCustomer.email);
+
+                              // Update GST type based on receiver's GSTIN
+                              const isIntraState = selectedCustomer.gstNumber && selectedCustomer.gstNumber.startsWith("24");
+                              setGstType(isIntraState ? "intra" : "inter");
                             }
                           }}
                           placeholder="Select Customer"
                           isSearchable={true}
                           noOptionsMessage={() => "No customers found"}
                         />
-                      </div>
+                      </div> */}
                       <div className="field-wrapper" >
                         <label>GSTIN</label>
                         <Field name="receiver.gstin" readOnly />
@@ -1441,30 +1544,11 @@ const Sales = () => {
                       </div>
                     </div>
 
-                    {/* <h3>Bank Details</h3>
-                    <div className="form-group-row">
-                      <div className="field-wrapper">
-                        <label>Bank Name</label>
-                        <Field name="bank.name" />
-                      </div>
-                      <div className="field-wrapper">
-                        <label>Account No</label>
-                        <Field name="bank.account" />
-                      </div>
-                      <div className="field-wrapper">
-                        <label>Branch</label>
-                        <Field name="bank.branch" />
-                      </div>
-                      <div className="field-wrapper">
-                        <label>IFSC</label>
-                        <Field name="bank.ifsc" />
-                      </div>
-                    </div> */}
-
-                    <div className="field-wrapper other-charge">
+                    {/* Commented out other charges as requested */}
+                    {/* <div className="field-wrapper other-charge">
                       <label>Other Charges</label>
                       <Field name="otherCharges" type="number" />
-                    </div>
+                    </div> */}
 
                     {/* Add this section before the totals */}
                     <h3>Additional Information</h3>
@@ -1472,6 +1556,25 @@ const Sales = () => {
                       <Field name="extraNote" as="textarea" rows="3" placeholder="Any additional notes or instructions" />
                     </div>
 
+                    <h3>Tax Information</h3>
+                    <div className="form-group-row">
+                      <div className="field-wrapper">
+                        <label>Tax Slab <span className="required">*</span></label>
+                        <Field
+                          as="select"
+                          name="taxSlab"
+                          onChange={(e) => setFieldValue("taxSlab", Number(e.target.value))}
+                        >
+                          <option value="">Select Tax Slab</option>
+                          {TAX_SLABS.map((slab) => (
+                            <option key={slab.value} value={slab.value}>
+                              {slab.label}
+                            </option>
+                          ))}
+                        </Field>
+                        <ErrorMessage name="taxSlab" component="div" className="error-message" />
+                      </div>
+                    </div>
 
                     <h3>Additional Charges</h3>
                     <div className="form-group-row">
@@ -1529,8 +1632,25 @@ const Sales = () => {
                           }}
                         />
                       </div>
+                      <div className="field-wrapper">
+                        <label>TCS %</label> {/* Added TCS */}
+                        <Field
+                          name="tcsPercent"
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="0-100%"
+                          onInput={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (isNaN(value)) return;
+                            if (value > 100) {
+                              e.target.value = 100;
+                              setFieldValue("tcsPercent", 100);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
-
 
                     <div className="terms-checkbox">
                       <label>
@@ -1574,17 +1694,6 @@ const Sales = () => {
                           ))}
                         </Field>
                       </div>
-
-                      {/* <div className="field-wrapper">
-                        <label>Distance (km)</label>
-                        <Field
-                          name="ewayBill.transDistance"
-                          type="number"
-                          min="1"
-                          required
-                        />
-                      </div> */}
-
                     </div>
 
                     <div className="totals">
@@ -1592,23 +1701,26 @@ const Sales = () => {
 
                       {/* Only show charges that have values */}
                       {values.packetForwardingPercent > 0 && (
-                        <p>Packet Forwarding: {values.packetForwardingPercent}% - ₹{totals.additionalCharges.packetForwarding.toFixed(2)}</p>
+                        <p>Packet Forwarding: {values.packetForwardingPercent}% - ₹{totals.packetForwarding.toFixed(2)}</p>
                       )}
                       {values.freightPercent > 0 && (
-                        <p>Freight: {values.freightPercent}% - ₹{totals.additionalCharges.freight.toFixed(2)}</p>
+                        <p>Freight: {values.freightPercent}% - ₹{totals.freight.toFixed(2)}</p>
                       )}
                       {values.inspectionPercent > 0 && (
-                        <p>Inspection: {values.inspectionPercent}% - ₹{totals.additionalCharges.inspection.toFixed(2)}</p>
+                        <p>Inspection: {values.inspectionPercent}% - ₹{totals.inspection.toFixed(2)}</p>
+                      )}
+                      {values.tcsPercent > 0 && ( // Added TCS
+                        <p>TCS: {values.tcsPercent}% - ₹{totals.tcs.toFixed(2)}</p>
                       )}
 
                       {/* GST calculations */}
                       {gstType === "intra" ? (
                         <>
-                          <p>CGST (9%): ₹{totals.cgst.toFixed(2)}</p>
-                          <p>SGST (9%): ₹{totals.sgst.toFixed(2)}</p>
+                          <p>CGST ({values.taxSlab / 2}%): ₹{totals.cgst.toFixed(2)}</p>
+                          <p>SGST ({values.taxSlab / 2}%): ₹{totals.sgst.toFixed(2)}</p>
                         </>
                       ) : (
-                        <p>IGST (18%): ₹{totals.igst.toFixed(2)}</p>
+                        <p>IGST ({values.taxSlab}%): ₹{totals.igst.toFixed(2)}</p>
                       )}
                       <p>Total: ₹{totals.total.toFixed(2)}</p>
                     </div>
@@ -1635,14 +1747,16 @@ const Sales = () => {
               <tr>
                 <th>Invoice No</th>
                 <th>Date</th>
+                <th>Company Name</th>
                 <th>Receiver</th>
                 <th>Total</th>
+                <th>Upload</th> {/* New column for uploads */}
               </tr>
             </thead>
             <tbody>
               {showLoader ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="table-loader"></div>
                   </td>
                 </tr>
@@ -1655,8 +1769,39 @@ const Sales = () => {
                   >
                     <td>{invoice.invoiceNumber}</td>
                     <td>{invoice.invoiceDate}</td>
+                    <td>{invoice.receiver.companyName}</td>
                     <td>{invoice.receiver.name}</td>
                     <td>₹{invoice.total.toFixed(2)}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="upload-cell">
+                        {uploadingFiles[invoice.invoiceNumber] ? (
+                          <div className="uploading-spinner">
+                            <FaSpinner className="spinner" />
+                          </div>
+                        ) : invoice.imageUrl ? (
+                          <div className="upload-status">
+                            <span className="upload-check">✓</span>
+                          </div>
+                        ) : (
+                          <>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              ref={el => fileInputRefs.current[invoice.invoiceNumber] = el}
+                              onChange={(e) => handleFileUpload(invoice, e)}
+                              style={{ display: 'none' }}
+                              id={`file-upload-${invoice.invoiceNumber}`}
+                            />
+                            <label
+                              htmlFor={`file-upload-${invoice.invoiceNumber}`}
+                              className="upload-button"
+                            >
+                              <FaUpload /> Upload
+                            </label>
+                          </>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -1665,8 +1810,7 @@ const Sales = () => {
         </div>
 
         <div style={{ display: "none" }}>
-          {selectedInvoice && <SalesPrint invoice={selectedInvoice} qrCodeUrl={qrCodeUrl || selectedInvoice.pdfUrl} />}
-        </div>
+          {selectedInvoice && <SalesPrint invoice={selectedInvoice} qrCodeUrl={qrCodeUrl || selectedInvoice.pdfUrl} taxSlab={selectedInvoice.taxSlab} />}        </div>
 
         {selectedInvoice && (
           <InvoiceModal

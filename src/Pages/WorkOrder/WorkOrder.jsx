@@ -13,33 +13,27 @@ import * as XLSX from 'xlsx';
 import { useInventory } from '../../Components/contexts/InventoryContext';
 import Select from 'react-select';
 
-
-// const generateWorkOrderNumber = (index) => `WO2025${String(index + 1).padStart(4, "0")}`;
-
 const WorkOrder = () => {
     const { calculateStock } = useInventory();
     const [workOrders, setWorkOrders] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
-    // const [gstType, setGstType] = useState("intra"); 
+    const [gstType, setGstType] = useState("intra");
     const [purchaseOrders, setPurchaseOrders] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [bomProducts, setBomProducts] = useState([]);
     const [inventoryItems, setInventoryItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [showLoader, setShowLoader] = useState(false);
     const loaderTimeoutRef = useRef(null);
 
-
     const submissionStateRef = useRef({
         isSubmitting: false,
         hasValidationErrors: false
     });
-
 
     const UNIT_OPTIONS = [
         { value: "MTR", label: "Meter (Mtr.)" },
@@ -47,7 +41,6 @@ const WorkOrder = () => {
         { value: "KGS", label: "Kilogram (Kg.)" },
         { value: "LTR", label: "Litre (L.)" }
     ];
-
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -85,7 +78,6 @@ const WorkOrder = () => {
         }
     }, [searchTerm]);
 
-
     const filteredWorkOrders = useMemo(() => {
         if (!debouncedSearch) return workOrders;
 
@@ -107,16 +99,6 @@ const WorkOrder = () => {
                 item.description?.toLowerCase().includes(debouncedSearch) ||
                 item.hsn?.toLowerCase().includes(debouncedSearch)
             )) return true;
-
-            // Check transport details
-            if (order.lrNumber?.toLowerCase().includes(debouncedSearch)) return true;
-            if (order.transporter?.toLowerCase().includes(debouncedSearch)) return true;
-
-            // Check bank details
-            if (order.bank?.name?.toLowerCase().includes(debouncedSearch)) return true;
-            if (order.bank?.account?.toLowerCase().includes(debouncedSearch)) return true;
-            if (order.bank?.branch?.toLowerCase().includes(debouncedSearch)) return true;
-            if (order.bank?.ifsc?.toLowerCase().includes(debouncedSearch)) return true;
 
             return false;
         });
@@ -171,8 +153,6 @@ const WorkOrder = () => {
         }
     };
 
-
-
     const checkInventory = async (productName, quantityToMake) => {
         try {
             const productBOM = bomProducts.find(bom => bom.productName === productName);
@@ -180,7 +160,7 @@ const WorkOrder = () => {
 
             // Fetch current inventory data
             const inventoryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/inventory/get-inventory`);
-            const inventoryItems = inventoryResponse.data.data || []; // Modified this line
+            const inventoryItems = inventoryResponse.data.data || [];
 
             const requirements = productBOM.items.map(bomItem => {
                 const totalNeeded = bomItem.requiredQty * quantityToMake;
@@ -204,7 +184,7 @@ const WorkOrder = () => {
                     canProduce: false,
                     message: "Insufficient inventory: " +
                         missingItems.map(i => `${i.component} (Need ${i.totalNeeded}, Have ${i.available})`).join(", "),
-                    details: requirements // Include details for reference
+                    details: requirements
                 };
             }
 
@@ -220,12 +200,11 @@ const WorkOrder = () => {
     };
 
     const initialValues = {
-        // workOrderNumber: generateWorkOrderNumber(workOrders.length),
-        // workOrderNumber: "", 
         workOrderDate: new Date().toISOString().split("T")[0],
         poNumber: "",
         poDate: "",
         receiver: {
+            companyName: "",
             name: "",
             gstin: "",
             address: "",
@@ -234,13 +213,6 @@ const WorkOrder = () => {
             contact: "",
             email: ""
         },
-        // consignee: {
-        //     name: "",
-        //     gstin: "",
-        //     address: "",
-        //     contact: "",
-        //     email: ""
-        // },
         items: [
             {
                 name: "",
@@ -251,23 +223,12 @@ const WorkOrder = () => {
                 units: ""
             }
         ],
-        // lrNumber: "",
-        // lrDate: "",
-        // transporter: "",
-        // transportMobile: "",
-        // bank: {
-        //     name: "",
-        //     account: "",
-        //     branch: "",
-        //     ifsc: ""
-        // },
-        otherCharges: 0
     };
 
     const validationSchema = Yup.object().shape({
         workOrderDate: Yup.string().required("Work Order Date is required"),
-        // poNumber: Yup.string().required("PO Number is required"), 
         receiver: Yup.object({
+            companyName: Yup.string().required("Company name required"),
             name: Yup.string().required("Receiver name required"),
             gstin: Yup.string().required("GSTIN required"),
             address: Yup.string().required("Address required"),
@@ -276,20 +237,12 @@ const WorkOrder = () => {
             pincode: Yup.string(),
             email: Yup.string().email("Invalid email").required("Email required")
         }),
-        // consignee: Yup.object({
-        //     name: Yup.string().required("Consignee name required"),
-        //     gstin: Yup.string().required("GSTIN required"),
-        //     address: Yup.string().required("Address required"),
-        //     contact: Yup.string().required("Contact required"),
-        //     email: Yup.string().email("Invalid email").required("Email required")
-        // }),
         items: Yup.array().of(
             Yup.object({
                 name: Yup.string().required("Item name required"),
                 quantity: Yup.number().required("Quantity required").moreThan(0),
                 unitPrice: Yup.number().required("Unit price required").moreThan(0),
-                units: Yup.string().required("Unit selection required") // Add this line
-
+                units: Yup.string().required("Unit selection required")
             })
         )
     });
@@ -302,28 +255,6 @@ const WorkOrder = () => {
             setFieldValue("poDate", selectedPO.date);
         }
     };
-
-    // const handleItemSelect = (e, index, setFieldValue) => {
-    //     const selectedProductName = e.target.value;
-    //     const selectedProduct = bomProducts.find(bom => bom.productName === selectedProductName);
-    //     if (selectedProduct) {
-    //         setFieldValue(`items.${index}.name`, selectedProduct.productName);
-    //         setFieldValue(`items.${index}.description`, selectedProduct.description);
-    //         setFieldValue(`items.${index}.hsn`, selectedProduct.hsnCode);
-
-    //         // Show BOM requirements when product is selected
-    //         toast.info(
-    //             `To make 1 ${selectedProduct.productName} you need: ${selectedProduct.items.map(i => `${i.requiredQty} ${i.itemName}`).join(", ")}`,
-    //             {
-    //                 autoClose: false,
-    //                 closeOnClick: false,
-    //                 draggable: false,
-    //                 closeButton: true
-    //             }
-    //         );
-    //     }
-    // };
-
 
     const handleItemSelect = (selectedOption, index, setFieldValue) => {
         if (selectedOption) {
@@ -346,10 +277,10 @@ const WorkOrder = () => {
         }
     };
 
-    const handleCustomerSelect = (e, setFieldValue) => {
-        const selectedCustomerName = e.target.value;
-        const selectedCustomer = customers.find(c => c.customerName === selectedCustomerName);
-        if (selectedCustomer) {
+    const handleCompanySelect = (selectedOption, setFieldValue) => {
+        if (selectedOption) {
+            const selectedCustomer = selectedOption.customerData;
+            setFieldValue("receiver.companyName", selectedCustomer.companyName);
             setFieldValue("receiver.name", selectedCustomer.customerName);
             setFieldValue("receiver.gstin", selectedCustomer.gstNumber);
             setFieldValue("receiver.address", selectedCustomer.address);
@@ -357,12 +288,10 @@ const WorkOrder = () => {
             setFieldValue("receiver.pincode", selectedCustomer.pincode);
             setFieldValue("receiver.contact", selectedCustomer.contactNumber);
             setFieldValue("receiver.email", selectedCustomer.email);
-            // setFieldValue("consignee.name", selectedCustomer.customerName);
-            // setFieldValue("consignee.gstin", selectedCustomer.gstNumber);
-            // setFieldValue("consignee.address", selectedCustomer.address);
-            // setFieldValue("consignee.contact", selectedCustomer.contactNumber);
-            // setFieldValue("consignee.email", selectedCustomer.email);
-            setGstType(selectedCustomer.gstNumber?.slice(0, 2) === "24" ? "intra" : "inter");
+
+            // Set GST type based on GST number
+            const isIntraState = selectedCustomer.gstNumber?.slice(0, 2) === "24";
+            setGstType(isIntraState ? "intra" : "inter");
         }
     };
 
@@ -376,24 +305,14 @@ const WorkOrder = () => {
         return { subtotal, cgst, sgst, igst, total };
     };
 
-    // const calculateTotals = (items, otherCharges = 0) => {
-    //     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    //     const cgst = +(subtotal * 0.09).toFixed(2);
-    //     const sgst = +(subtotal * 0.09).toFixed(2);
-    //     const total = +(subtotal + cgst + sgst + Number(otherCharges || 0)).toFixed(2);
-    //     return { subtotal, cgst, sgst, total };
-    // };
-
     const handleSubmit = async (values, { resetForm }) => {
-
         toast.dismiss();
 
-        // If we're already submitting or have validation errors, bail out
         if (isSubmitting || submissionStateRef.current.hasValidationErrors) {
             return;
         }
 
-        setIsSubmitting(true); // Set submitting state
+        setIsSubmitting(true);
 
         try {
             const inventoryCheck = await checkInventory(
@@ -411,11 +330,9 @@ const WorkOrder = () => {
                 return;
             }
 
-            const numericOtherCharges = Number(values.otherCharges || 0);
-            const totals = calculateTotals(values.items, numericOtherCharges);
+            const totals = calculateTotals(values.items, 0, values.receiver.gstin);
             const newWorkOrder = {
                 ...values,
-                otherCharges: numericOtherCharges,
                 ...totals,
                 materialRequirements: inventoryCheck.details
             };
@@ -425,41 +342,38 @@ const WorkOrder = () => {
                 newWorkOrder
             );
 
-            // Add new work order at the beginning of the array
             setWorkOrders(prev => [response.data.data, ...prev]);
             toast.success("Work order created successfully!");
             setShowForm(false);
 
-            // resetForm({
-            //     values: {
-            //         ...initialValues,
-            //         workOrderNumber: generateWorkOrderNumber(workOrders.length + 1)
-            //     }
-            // });
-        
-        
         } catch (error) {
             console.error("Error saving work order:", error);
             toast.error(error.response?.data?.message || "Failed to save work order");
         } finally {
-            setIsSubmitting(false); // Reset submitting state
+            setIsSubmitting(false);
         }
     };
 
     const handleExportPDF = () => {
-        if (!selectedWorkOrder) return toast.warn("Select a work order to export");
-        const element = document.getElementById("workorder-pdf");
-        html2pdf()
-            .from(element)
-            .set({
-                margin: 10,
-                filename: `${selectedWorkOrder.workOrderNumber}.pdf`,
-                image: { type: "jpeg", quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-            })
-            .save();
-    };
+  if (!selectedWorkOrder) return toast.warn("Select a work order to export");
+  
+  const element = document.getElementById("workorder-pdf");
+  
+  html2pdf()
+    .from(element)
+    .set({
+      margin: [25, 10, 10, 10], // top=30mm, right=10mm, bottom=10mm, left=10mm
+      filename: `${selectedWorkOrder.workOrderNumber}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { 
+        scale: 2,
+        useCORS: true,
+        logging: false
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    })
+    .save();
+};
 
     const handleExportExcel = () => {
         if (workOrders.length === 0) {
@@ -467,14 +381,13 @@ const WorkOrder = () => {
             return;
         }
 
-        // Prepare data for Excel
         const data = workOrders.map(order => ({
             'Work Order No': order.workOrderNumber,
             'Date': order.workOrderDate,
+            'Company': order.receiver?.companyName || 'N/A',
             'Receiver': order.receiver?.name || 'N/A',
             'Total': order.total?.toFixed(2),
             'PO Number': order.poNumber || 'N/A',
-            // 'Consignee': order.consignee?.name || 'N/A',
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(data);
@@ -484,7 +397,6 @@ const WorkOrder = () => {
         toast.success("Exported all work orders to Excel");
     };
 
-    // Add this component near the top of your WorkOrder.js file
     const WorkOrderModal = ({ workOrder, onClose, onExport }) => {
         useEffect(() => {
             document.body.style.overflow = 'hidden';
@@ -495,12 +407,7 @@ const WorkOrder = () => {
 
         if (!workOrder) return null;
 
-        const totals = {
-            subtotal: workOrder.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0),
-            cgst: workOrder.cgst || 0,
-            sgst: workOrder.sgst || 0,
-            total: workOrder.total || 0
-        };
+        const totals = calculateTotals(workOrder.items, 0, workOrder.receiver.gstin);
 
         return (
             <div className="modal-overlay" onClick={onClose}>
@@ -514,7 +421,6 @@ const WorkOrder = () => {
 
                     <div className="modal-body">
                         <div className="wo-details-grid">
-                            {/* Basic Work Order Details */}
                             <div className="detail-row">
                                 <span className="detail-label">Work Order No:</span>
                                 <span className="detail-value">{workOrder.workOrderNumber}</span>
@@ -536,8 +442,14 @@ const WorkOrder = () => {
                                 </div>
                             )}
 
-                            {/* Receiver Details */}
+                            {/* <div className="section-header">Company Details</div>  */}
+
+
                             <div className="section-header">Receiver Details (Billed To)</div>
+                            <div className="detail-row">
+                                <span className="detail-label">Company Name:</span>
+                                <span className="detail-value">{workOrder.receiver.companyName || 'N/A'}</span>
+                            </div>
                             <div className="detail-row">
                                 <span className="detail-label">Name:</span>
                                 <span className="detail-value">{workOrder.receiver.name}</span>
@@ -569,30 +481,6 @@ const WorkOrder = () => {
                                 <span className="detail-value">{workOrder.receiver.email}</span>
                             </div>
 
-
-                            {/*  <div className="section-header">Consignee Details (Shipped To)</div>
-                            <div className="detail-row">
-                                <span className="detail-label">Name:</span>
-                                <span className="detail-value">{workOrder.consignee.name}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">GSTIN:</span>
-                                <span className="detail-value">{workOrder.consignee.gstin}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Address:</span>
-                                <span className="detail-value">{workOrder.consignee.address}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Contact:</span>
-                                <span className="detail-value">{workOrder.consignee.contact}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Email:</span>
-                                <span className="detail-value">{workOrder.consignee.email}</span>
-                            </div> */}
-
-                            {/* Items Section */}
                             <div className="section-header">Items Ordered</div>
                             <div className="items-grid">
                                 {workOrder.items.map((item, index) => (
@@ -610,63 +498,28 @@ const WorkOrder = () => {
                                 ))}
                             </div>
 
-                            {/* Transport Details */}
-                            {/* <div className="section-header">Transport Details</div>
-                            <div className="detail-row">
-                                <span className="detail-label">LR Number:</span>
-                                <span className="detail-value">{workOrder.lrNumber || 'N/A'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">LR Date:</span>
-                                <span className="detail-value">{workOrder.lrDate || 'N/A'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Transporter:</span>
-                                <span className="detail-value">{workOrder.transporter || 'N/A'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Mobile:</span>
-                                <span className="detail-value">{workOrder.transportMobile || 'N/A'}</span>
-                            </div> */}
-
-                            {/* Bank Details */}
-                            {/* <div className="section-header">Bank Details</div>
-                            <div className="detail-row">
-                                <span className="detail-label">Bank Name:</span>
-                                <span className="detail-value">{workOrder.bank?.name || 'N/A'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Account No:</span>
-                                <span className="detail-value">{workOrder.bank?.account || 'N/A'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Branch:</span>
-                                <span className="detail-value">{workOrder.bank?.branch || 'N/A'}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">IFSC:</span>
-                                <span className="detail-value">{workOrder.bank?.ifsc || 'N/A'}</span>
-                            </div> */}
-
-                            {/* Totals Section */}
                             <div className="section-header">Order Summary</div>
                             <div className="totals-section">
                                 <div className="total-row">
                                     <span>Subtotal:</span>
                                     <span>₹{totals.subtotal.toFixed(2)}</span>
                                 </div>
-                                <div className="total-row">
-                                    <span>CGST (9%):</span>
-                                    <span>₹{totals.cgst.toFixed(2)}</span>
-                                </div>
-                                <div className="total-row">
-                                    <span>SGST (9%):</span>
-                                    <span>₹{totals.sgst.toFixed(2)}</span>
-                                </div>
-                                {workOrder.otherCharges > 0 && (
+                                {totals.cgst > 0 && (
                                     <div className="total-row">
-                                        <span>Other Charges:</span>
-                                        <span>₹{workOrder.otherCharges.toFixed(2)}</span>
+                                        <span>CGST (9%):</span>
+                                        <span>₹{totals.cgst.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {totals.sgst > 0 && (
+                                    <div className="total-row">
+                                        <span>SGST (9%):</span>
+                                        <span>₹{totals.sgst.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {totals.igst > 0 && (
+                                    <div className="total-row">
+                                        <span>IGST (18%):</span>
+                                        <span>₹{totals.igst.toFixed(2)}</span>
                                     </div>
                                 )}
                                 <div className="total-row grand-total">
@@ -704,9 +557,6 @@ const WorkOrder = () => {
                             />
                         </div>
                         <div className="page-actions">
-                            {/* <button className="export-btn" onClick={handleExportPDF}>
-                                <FaFileExport /> Export
-                            </button> */}
                             <button className="export-all-btn" onClick={handleExportExcel}>
                                 <FaFileExcel /> Export All
                             </button>
@@ -721,7 +571,13 @@ const WorkOrder = () => {
 
                 {showForm && (
                     <div className="form-container">
-                        {/* <h2>Create Work Order</h2>  */}
+                        <div className="po-form-header">
+                            <h2>Create Work Order</h2>
+                            <div className="date-container">
+                                <span className="date-label">Date:</span>
+                                <span className="po-date">{initialValues.workOrderDate}</span>
+                            </div>
+                        </div>
                         <Formik
                             initialValues={initialValues}
                             validationSchema={validationSchema}
@@ -730,23 +586,13 @@ const WorkOrder = () => {
                             onSubmit={handleSubmit}
                         >
                             {({ values, setFieldValue, errors, submitCount, isSubmitting }) => {
-                                // Show errors as toast when submit is attempted
                                 submissionStateRef.current.isSubmitting = isSubmitting;
 
-
                                 useEffect(() => {
-                                    // Only show errors if:
-                                    // 1. User has tried to submit
-                                    // 2. There are validation errors
-                                    // 3. We're not currently submitting
                                     if (submitCount > 0 && Object.keys(errors).length > 0 && !submissionStateRef.current.isSubmitting) {
-                                        // Clear all previous toasts first
                                         toast.dismiss();
-
-                                        // Track that we have validation errors
                                         submissionStateRef.current.hasValidationErrors = true;
 
-                                        // Show field-specific errors
                                         if (errors.workOrderDate) toast.error(errors.workOrderDate);
 
                                         if (errors.receiver) {
@@ -766,226 +612,157 @@ const WorkOrder = () => {
                                             });
                                         }
                                     } else if (submitCount > 0 && Object.keys(errors).length === 0) {
-                                        // Reset validation error flag when errors are fixed
                                         submissionStateRef.current.hasValidationErrors = false;
                                     }
                                 }, [submitCount, errors, isSubmitting]);
 
                                 return (
-                                    <>
-                                        <div className="po-form-header">
-                                            <h2>Create Work Order</h2>
-                                            <div className="date-container">
-                                                <span className="date-label">Date:</span>
-                                                <span className="po-date">{values.workOrderDate}</span>
-                                            </div>
-                                        </div>
-                                        <Form>
-                                            {/* Work Order Number and Date */}
-                                            <div className="form-group-row">
-                                                {/* <div className="field-wrapper">
-                                                <label>Work Order No</label>
-                                                <Field name="workOrderNumber" readOnly placeholder="Generated After Submission" />
-                                            </div> */}
-                                                <div className="field-wrapper">
-                                                    {/* <label>Work Order Date</label>  */}
-                                                    <Field name="workOrderDate" type="hidden" />
-                                                </div>
-                                            </div>
-
-                                            {/* Receiver Section */}
-                                            <h3>Receiver (Billed To)</h3>
-                                            <div className="form-group-row">
-                                                <div className="field-wrapper">
-                                                    <label>Name</label>
-                                                    <Field
-                                                        name="receiver.name"
-                                                        as="select"
-                                                        onChange={(e) => handleCustomerSelect(e, setFieldValue)}
-                                                    >
-                                                        <option value="">Select Customer</option>
-                                                        {customers.map(customer => (
-                                                            <option key={customer.customerId} value={customer.customerName}>
-                                                                {customer.customerName}
-                                                            </option>
-                                                        ))}
-                                                    </Field>
-                                                </div>
-                                                <div className="field-wrapper">
-                                                    <label>GSTIN</label>
-                                                    <Field name="receiver.gstin" readOnly />
-                                                </div>
-                                                <div className="field-wrapper">
-                                                    <label>Contact</label>
-                                                    <Field name="receiver.contact" readOnly />
-                                                </div>
-                                                <div className="field-wrapper">
-                                                    <label>Email</label>
-                                                    <Field name="receiver.email" type="email" readOnly />
-                                                </div>
-                                            </div>
-                                            <div className="form-group">
-                                                <Field name="receiver.address" as="textarea" placeholder="Receiver Address" readOnly />
-                                                <div className="address-details-row">
-                                                    <Field name="receiver.city" placeholder="City" readOnly />
-                                                    <Field name="receiver.pincode" placeholder="Pincode" readOnly />
-                                                </div>
-                                            </div>
-
-                                            {/* Consignee Section */}
-                                            {/* <h3>Consignee (Shipped To)</h3>
+                                    <Form>
+                                        {/* Company Selection */}
+                                        {/* <h3>Company Details</h3>
                                         <div className="form-group-row">
                                             <div className="field-wrapper">
-                                                <label>Name</label>
-                                                <Field name="consignee.name" />
+                                                <label>Company Name</label>
+                                                <Select
+                                                    className="react-select-container"
+                                                    classNamePrefix="react-select"
+                                                    options={customers.map(customer => ({
+                                                        value: customer.companyName,
+                                                        label: customer.companyName,
+                                                        customerData: customer
+                                                    }))}
+                                                    onChange={(selectedOption) => handleCompanySelect(selectedOption, setFieldValue)}
+                                                    placeholder="Select Company"
+                                                    isSearchable={true}
+                                                    noOptionsMessage={() => "No companies found"}
+                                                />
+                                            </div>
+                                        </div> */}
+
+                                        {/* Receiver Section */}
+                                        <h3>Receiver (Billed To)</h3>
+                                        <div className="form-group-row">
+                                            <div className="field-wrapper">
+                                                <label>Company Name</label>
+                                                <Select
+                                                    className="react-select-container"
+                                                    classNamePrefix="react-select"
+                                                    options={customers.map(customer => ({
+                                                        value: customer.companyName,
+                                                        label: customer.companyName,
+                                                        customerData: customer
+                                                    }))}
+                                                    onChange={(selectedOption) => handleCompanySelect(selectedOption, setFieldValue)}
+                                                    placeholder="Select Company"
+                                                    isSearchable={true}
+                                                    noOptionsMessage={() => "No companies found"}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group-row">
+                                            <div className="field-wrapper">
+                                                <label>Customer Name</label>
+                                                <Field name="receiver.name" readOnly />
                                             </div>
                                             <div className="field-wrapper">
                                                 <label>GSTIN</label>
-                                                <Field name="consignee.gstin" />
+                                                <Field name="receiver.gstin" readOnly />
                                             </div>
                                             <div className="field-wrapper">
                                                 <label>Contact</label>
-                                                <Field name="consignee.contact" />
+                                                <Field name="receiver.contact" readOnly />
                                             </div>
                                             <div className="field-wrapper">
                                                 <label>Email</label>
-                                                <Field name="consignee.email" type="email" />
+                                                <Field name="receiver.email" type="email" readOnly />
                                             </div>
                                         </div>
                                         <div className="form-group">
-                                            <Field name="consignee.address" as="textarea" placeholder="Consignee Address" />
-                                        </div> */}
+                                            <Field name="receiver.address" as="textarea" placeholder="Receiver Address" readOnly />
+                                            <div className="address-details-row">
+                                                <Field name="receiver.city" placeholder="City" readOnly />
+                                                <Field name="receiver.pincode" placeholder="Pincode" readOnly />
+                                            </div>
+                                        </div>
 
-                                            {/* Items Section */}
-                                            <h3>Item Details</h3>
-                                            <FieldArray name="items">
-                                                {({ push, remove }) => (
-                                                    <div className="form-items">
-                                                        {values.items.map((_, index) => (
-                                                            <div className="item-row" key={index}>
-                                                                <Select
-                                                                    className="react-select-container"
-                                                                    classNamePrefix="react-select"
-                                                                    options={bomProducts.map(bom => ({
-                                                                        value: bom.productName,
-                                                                        label: bom.productName,
-                                                                        bomData: bom // Pass the full BOM data
-                                                                    }))}
-                                                                    onChange={(selectedOption) => handleItemSelect(selectedOption, index, setFieldValue)}
-                                                                    placeholder="Products"
-                                                                    isSearchable={true}
-                                                                    noOptionsMessage={() => "No products found"}
-                                                                />
-                                                                <Field name={`items.${index}.description`} placeholder="Description" readOnly />
-                                                                <Field name={`items.${index}.hsn`} placeholder="HSN Code" readOnly />
-                                                                <Field name={`items.${index}.quantity`} type="number" placeholder="Qty" />
-                                                                <Field name={`items.${index}.unitPrice`} type="number" placeholder="Unit Price" />
-                                                                <Select
-                                                                    className="react-select-container"
-                                                                    classNamePrefix="react-select"
-                                                                    options={UNIT_OPTIONS}
-                                                                    onChange={(selectedOption) =>
-                                                                        setFieldValue(`items.${index}.units`, selectedOption?.value || "")
-                                                                    }
-                                                                    placeholder="Units"
-                                                                    isSearchable={true}
-                                                                    noOptionsMessage={() => "No units found"}
-                                                                />
-                                                                {values.items.length > 1 && (
-                                                                    <button type="button" className="remove-btn" onClick={() => remove(index)}>
+                                        {/* Items Section */}
+                                        <h3>Item Details</h3>
+                                        <FieldArray name="items">
+                                            {({ push, remove }) => (
+                                                <div className="form-items">
+                                                    {values.items.map((_, index) => (
+                                                        <div className="item-row" key={index}>
+                                                            <Select
+                                                                className="react-select-container"
+                                                                classNamePrefix="react-select"
+                                                                options={bomProducts.map(bom => ({
+                                                                    value: bom.productName,
+                                                                    label: bom.productName,
+                                                                    bomData: bom
+                                                                }))}
+                                                                onChange={(selectedOption) => handleItemSelect(selectedOption, index, setFieldValue)}
+                                                                placeholder="Products"
+                                                                isSearchable={true}
+                                                                noOptionsMessage={() => "No products found"}
+                                                            />
+                                                            <Field name={`items.${index}.description`} placeholder="Description" readOnly />
+                                                            <Field name={`items.${index}.hsn`} placeholder="HSN Code" readOnly />
+                                                            <Field name={`items.${index}.quantity`} type="number" placeholder="Qty" />
+                                                            <Field name={`items.${index}.unitPrice`} type="number" placeholder="Unit Price" />
+                                                            <Select
+                                                                className="react-select-container"
+                                                                classNamePrefix="react-select"
+                                                                options={UNIT_OPTIONS}
+                                                                onChange={(selectedOption) =>
+                                                                    setFieldValue(`items.${index}.units`, selectedOption?.value || "")
+                                                                }
+                                                                placeholder="Units"
+                                                                isSearchable={true}
+                                                                noOptionsMessage={() => "No units found"}
+                                                            />
+                                                            {values.items.length > 1 && (
+                                                                <button type="button" className="remove-btn" onClick={() => remove(index)}>
+                                                                    <FaTrash />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    <button
+                                                        type="button"
+                                                        className="add-btn"
+                                                        onClick={() => push({ name: "", description: "", hsn: "", quantity: 0, unitPrice: 0, units: "" })}
+                                                    >
+                                                        + Add Item
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </FieldArray>
 
-                                                                        <FaTrash />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                        <button
-                                                            type="button"
-                                                            className="add-btn"
-                                                            onClick={() => push({ name: "", description: "", hsn: "", quantity: 0, unitPrice: 0, units: "" })}
-                                                        >
-                                                            + Add Item
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </FieldArray>
+                                        {/* GST and Totals Section */}
+                                        <div className="totals">
+                                            <p>Subtotal: ₹{calculateTotals(values.items, 0, values.receiver.gstin).subtotal.toFixed(2)}</p>
+                                            {calculateTotals(values.items, 0, values.receiver.gstin).cgst > 0 && (
+                                                <p>CGST (9%): ₹{calculateTotals(values.items, 0, values.receiver.gstin).cgst.toFixed(2)}</p>
+                                            )}
+                                            {calculateTotals(values.items, 0, values.receiver.gstin).sgst > 0 && (
+                                                <p>SGST (9%): ₹{calculateTotals(values.items, 0, values.receiver.gstin).sgst.toFixed(2)}</p>
+                                            )}
+                                            {calculateTotals(values.items, 0, values.receiver.gstin).igst > 0 && (
+                                                <p>IGST (18%): ₹{calculateTotals(values.items, 0, values.receiver.gstin).igst.toFixed(2)}</p>
+                                            )}
+                                            <p>Total: ₹{calculateTotals(values.items, 0, values.receiver.gstin).total.toFixed(2)}</p>
+                                        </div>
 
-                                            {/* Transport Details */}
-                                            {/* <h3>Transport Details</h3>
-                                        <div className="form-group-row">
-                                            <div className="field-wrapper">
-                                                <label>LR Number</label>
-                                                <Field name="lrNumber" />
-                                            </div>
-                                            <div className="field-wrapper">
-                                                <label>LR Date</label>
-                                                <Field name="lrDate" type="date" />
-                                            </div>
-                                            <div className="field-wrapper">
-                                                <label>Transporter</label>
-                                                <Field name="transporter" />
-                                            </div>
-                                            <div className="field-wrapper">
-                                                <label>Mobile</label>
-                                                <Field name="transportMobile" />
-                                            </div>
-                                        </div> */}
-
-                                            {/* Bank Details */}
-                                            {/* <h3>Bank Details</h3>
-                                        <div className="form-group-row">
-                                            <div className="field-wrapper">
-                                                <label>Bank Name</label>
-                                                <Field name="bank.name" />
-                                            </div>
-                                            <div className="field-wrapper">
-                                                <label>Account No</label>
-                                                <Field name="bank.account" />
-                                            </div>
-                                            <div className="field-wrapper">
-                                                <label>Branch</label>
-                                                <Field name="bank.branch" />
-                                            </div>
-                                            <div className="field-wrapper">
-                                                <label>IFSC</label>
-                                                <Field name="bank.ifsc" />
-                                            </div>
-                                        </div> */}
-
-                                            {/* Other Charges and Totals */}
-                                            <div className="field-wrapper">
-                                                <label>Other Charges</label>
-                                                <Field name="otherCharges" type="number" />
-                                            </div>
-
-                                            <div className="totals">
-                                                <p>Subtotal: ₹{calculateTotals(values.items, values.otherCharges, values.receiver.gstin).subtotal}</p>
-                                                {calculateTotals(values.items, values.otherCharges, values.receiver.gstin).cgst > 0 && (
-                                                    <p>CGST (9%): ₹{calculateTotals(values.items, values.otherCharges, values.receiver.gstin).cgst}</p>
-                                                )}
-                                                {calculateTotals(values.items, values.otherCharges, values.receiver.gstin).sgst > 0 && (
-                                                    <p>SGST (9%): ₹{calculateTotals(values.items, values.otherCharges, values.receiver.gstin).sgst}</p>
-                                                )}
-                                                {calculateTotals(values.items, values.otherCharges, values.receiver.gstin).igst > 0 && (
-                                                    <p>IGST (18%): ₹{calculateTotals(values.items, values.otherCharges, values.receiver.gstin).igst}</p>
-                                                )}
-                                                {values.otherCharges > 0 && (
-                                                    <p>Other Charges: ₹{Number(values.otherCharges).toFixed(2)}</p>
-                                                )}
-                                                <p>Total: ₹{calculateTotals(values.items, values.otherCharges, values.receiver.gstin).total}</p>
-                                            </div>
-
-                                            <div className="submit-btn-container">
-                                                <button
-                                                    type="submit"
-                                                    disabled={isSubmitting}
-                                                    className={isSubmitting ? "submitting" : "submit-btn"}
-                                                >
-                                                    {isSubmitting ? "Submitting..." : "Submit Work Order"}
-                                                </button>
-                                            </div>
-                                        </Form>
-                                    </>
+                                        <div className="submit-btn-container">
+                                            <button
+                                                type="submit"
+                                                disabled={isSubmitting}
+                                                className={isSubmitting ? "submitting" : "submit-btn"}
+                                            >
+                                                {isSubmitting ? "Submitting..." : "Submit Work Order"}
+                                            </button>
+                                        </div>
+                                    </Form>
                                 );
                             }}
                         </Formik>
@@ -998,6 +775,7 @@ const WorkOrder = () => {
                             <tr>
                                 <th>Work Order No</th>
                                 <th>Date</th>
+                                <th>Company</th>
                                 <th>Receiver</th>
                                 <th>Total</th>
                             </tr>
@@ -1005,7 +783,7 @@ const WorkOrder = () => {
                         <tbody>
                             {showLoader ? (
                                 <tr>
-                                    <td colSpan="4" style={{ textAlign: 'center', padding: '40px' }}>
+                                    <td colSpan="5" style={{ textAlign: 'center', padding: '40px' }}>
                                         <div className="table-loader"></div>
                                     </td>
                                 </tr>
@@ -1018,6 +796,7 @@ const WorkOrder = () => {
                                     >
                                         <td>{order.workOrderNumber}</td>
                                         <td>{order.workOrderDate}</td>
+                                        <td>{order.receiver?.companyName || 'N/A'}</td>
                                         <td>{order.receiver?.name || 'N/A'}</td>
                                         <td>₹{order.total?.toFixed(2)}</td>
                                     </tr>

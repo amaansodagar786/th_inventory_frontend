@@ -281,15 +281,40 @@ const PurchaseOrder = () => {
         }
     };
 
-    const handleExportPDF = () => {
-        if (!selectedPO) return toast.warn("Please select a PO first");
+    const handleExportPDF = async () => {
+        if (!selectedPO) {
+            toast.warn("Please select a PO first");
+            return;
+        }
+
         const element = document.getElementById("po-pdf");
-        html2pdf().from(element)
+
+        // Wait for images to load (if any)
+        const images = element.getElementsByTagName("img");
+        const imageLoadPromises = Array.from(images).map((img) => {
+            return new Promise((resolve) => {
+                if (img.complete) {
+                    resolve();
+                } else {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                }
+            });
+        });
+
+        await Promise.race([
+            Promise.all(imageLoadPromises),
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
+
+        // Generate PDF with margins (header/footer spacing)
+        await html2pdf()
+            .from(element)
             .set({
-                margin: 0,
+                margin: [25, 10, 10, 10], // top=30mm, right=10mm, bottom=10mm, left=10mm
                 filename: `${selectedPO.poNumber}.pdf`,
                 image: { type: "jpeg", quality: 0.98 },
-                html2canvas: { scale: 2 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
                 jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
             })
             .save();

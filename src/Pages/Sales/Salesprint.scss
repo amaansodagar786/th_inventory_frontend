@@ -1,7 +1,6 @@
 #sales-pdf {
   width: 100%;
   max-width: 210mm;
-  // min-height: 297mm; 
   padding: 10mm;
   margin: 0 auto;
   font-family: Arial, sans-serif;
@@ -9,18 +8,12 @@
   color: #333;
   background: #fff;
   box-sizing: border-box;
+  position: relative;
+ 
 
-  @media print {
-    padding: 0 10mm;
-    margin: 0;
-    width: 210mm;
-    height: auto;
-  }
-
-  /* EMPTY SPACE FOR PRE-PRINTED HEADER */
-  .header-space {
-    height: 30mm;
-    /* Adjust this value based on your pre-printed header size */
+  .main-content {
+    position: relative;
+    z-index: 1;
   }
 
   /* Company GST and LUT details */
@@ -29,41 +22,68 @@
     justify-content: space-between;
     margin-bottom: 10px;
     padding-bottom: 5px;
-    // border-bottom: 1px solid #000; 
+    page-break-inside: avoid;
 
     .left-details,
+    .middle-details,
     .right-details {
       p {
         margin: 3px 0;
+        text-align: center;
+      }
+    }
+
+    .middle-details {
+      p {
+        font-size: 11px;
       }
     }
   }
 
   .invoice-po-section {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
     margin-bottom: 15px;
     padding-bottom: 5px;
     border-bottom: 1px solid #000;
+    page-break-inside: avoid;
 
-    .invoice-details,
-    .po-details {
+    .invoice-details {
+      grid-column: 1;
+      text-align: left;
+
       p {
         margin: 3px 0;
         font-weight: bold;
       }
     }
-  }
 
-  /* Invoice meta placed below header space */
-  .invoice-meta {
-    margin-bottom: 15px;
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    font-size: 14px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #000;
+    .invoice-title {
+      grid-column: 2;
+      text-align: center;
+
+      h3 {
+        margin: 0;
+        font-size: 16px;
+        white-space: nowrap;
+      }
+    }
+
+    .po-details {
+      grid-column: 3;
+      text-align: right;
+
+      p {
+        margin: 3px 0;
+        font-weight: bold;
+
+        &:empty::before {
+          content: " ";
+          visibility: hidden;
+        }
+      }
+    }
   }
 
   .party-section {
@@ -71,6 +91,7 @@
     justify-content: space-between;
     margin-bottom: 15px;
     gap: 4%;
+    page-break-inside: avoid;
 
     .party-card {
       width: 48%;
@@ -78,10 +99,11 @@
       border: 1px solid #ddd;
       border-radius: 5px;
       box-sizing: border-box;
+      font-size: 11px;
 
       h3 {
         margin: 0 0 10px 0;
-        font-size: 14px;
+        font-size: 12px;
         border-bottom: 1px solid #eee;
         padding-bottom: 5px;
       }
@@ -93,20 +115,16 @@
     }
   }
 
-  .po-info {
-    margin-bottom: 15px;
-
-    p {
-      margin: 5px 0;
-    }
+  .items-container {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
   }
 
   .items-table {
-
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20px;
     table-layout: fixed;
+    page-break-inside: auto;
 
     th,
     td {
@@ -114,46 +132,33 @@
       padding: 5px;
       text-align: left;
       word-break: break-word;
+      font-size: 10px !important;
+      line-height: 1.25;
     }
 
     th {
-      background-color: #f5f5f5;
+      background: #f5f5f5;
       font-weight: bold;
+      text-align: center;
+      page-break-after: avoid;
+    }
+
+    tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    th.sr-no,
+    td.sr-no {
+      width: 4% !important;
       text-align: center;
     }
 
-    td {
-      font-size: 12px;
-      vertical-align: top;
-
-      &:first-child {
-        width: 5%;
-        text-align: center;
-      }
-
-      &:nth-child(2) {
-        width: 20%;
-      }
-
-      &:nth-child(3) {
-        width: 25%;
-      }
-
-      &:nth-child(4) {
-        width: 5%;
-        text-align: center;
-      }
-
-      &:nth-child(5) {
-        width: 5%;
-        text-align: center;
-      }
-
-      &:nth-child(6),
-      &:nth-child(7) {
-        width: 10%;
-        text-align: right;
-      }
+    td.description-cell {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: normal !important;
     }
   }
 
@@ -162,21 +167,28 @@
     justify-content: space-between;
     margin-bottom: 20px;
     gap: 4%;
+    page-break-inside: avoid;
 
-    .transport-details {
+    .transport-bank-details {
       width: 48%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
       box-sizing: border-box;
 
-      h4 {
-        margin: 0 0 10px 0;
-        font-size: 14px;
-      }
+      .transport-details,
+      .bank-details {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        font-size: 11px;
 
-      p {
-        margin: 5px 0;
+        p {
+          margin: 4px 0;
+        }
+
+        .lr-details {
+          display: flex;
+          justify-content: space-between;
+        }
       }
     }
 
@@ -206,67 +218,48 @@
     }
   }
 
-  .bank-qr-section {
+  .notes-qr-section {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
+    min-height: 120px;
+    page-break-inside: avoid;
 
-    .bank-details {
-      width: 60%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      box-sizing: border-box;
+    .notes-section {
+      width: 65%;
 
-      h4 {
-        margin: 0 0 10px 0;
-        font-size: 14px;
-      }
+      .extra-notes,
+      .terms-section {
+        h4 {
+          margin: 0 0 5px 0;
+          font-size: 14px;
+        }
 
-      p {
-        margin: 5px 0;
+        p,
+        pre {
+          margin: 2px 0;
+          white-space: pre-wrap;
+          font-family: inherit;
+          font-size: 11px;
+        }
       }
     }
 
     .qr-code {
-      width: 35%;
+      width: 30%;
       text-align: center;
       padding: 10px;
       box-sizing: border-box;
-
-      p {
-        margin-top: 5px;
-        font-size: 11px;
-      }
-    }
-  }
-
-  .notes-section {
-    margin-bottom: 20px;
-
-    .extra-notes,
-    .terms-section {
-      margin-bottom: 15px;
-
-      h4 {
-        margin: 0 0 5px 0;
-        font-size: 14px;
-      }
-
-      p,
-      pre {
-        margin: 5px 0;
-        white-space: pre-wrap;
-        font-family: inherit;
-      }
+      align-self: flex-start;
     }
   }
 
   .certification-section {
     display: flex;
     justify-content: space-between;
-    margin-top: 50px;
+    margin-top: 6px;
     align-items: flex-start;
+    page-break-inside: avoid;
 
     .certification-text {
       width: 60%;
@@ -295,31 +288,49 @@
     text-align: center;
     margin-top: 20px;
     font-weight: bold;
+    page-break-before: avoid;
   }
 }
 
+/* ----------------- PRINT RULES (this is the fix) ----------------- */
 @media print {
+
+  html,
   body {
-    margin: 0;
-    padding: 0;
-    background: #fff;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
+  /* Don’t add top/bottom margins here; we’ll add them via header/footer groups */
+  @page {
+    size: A4 portrait;
+    // margin: 0 10mm; 
+  }
+
+  /* left/right = 10mm, top/bottom = 0 */
+
+  /* Make the wrapper a table so header/footer groups repeat each page */
   #sales-pdf {
-    width: 210mm;
-    // height: 297mm; 
-    padding: 10mm;
-    margin: 0 auto;
-    box-shadow: none;
+    width: auto !important;
+    /* fill printable area */
+    max-width: none !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
 
-    .header-space {
-      height: 50mm !important;
-    }
+    display: table;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
 
-    .party-section,
-    .summary-section,
-    .items-table {
-      page-break-inside: avoid;
-    }
+  /* repeat on every printed page & reserve space */
+
+  
+
+  /* the real content flows as table rows between header & footer on each page */
+  #sales-pdf .main-content {
+    display: table-row-group;
+    margin: 0;
+    /* no extra top margin needed */
   }
 }

@@ -1,125 +1,294 @@
-/* PurchaseOrderPrint.scss */
 #print-container,
 .print-container,
 #po-pdf {
-  width: 210mm;
-  // min-height: 297mm; 
-  padding: 20mm;
-  font-family: 'Arial', sans-serif;
-  font-size: 12px;
-  color: #000;
-  background: #fff;
-  border: 1px solid #000;
-  box-sizing: border-box;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid #000;
-  padding-bottom: 10px;
-  margin-bottom: 20px;
-  /* Increased spacing below header */
-}
-
-.header .center {
-  text-align: center;
-  flex-grow: 1;
-}
-
-.header .center h3 {
-  margin: 5px 0;
-}
-
-.header .center p {
-  margin: 5px 0 15px 0;
-  /* Added spacing below p */
-}
-
-.header .center h2 {
-  margin: 10px 0 5px 0;
-  /* Added spacing above h2 */
-  //   text-decoration: underline;
-}
-
-.section {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  /* Increased spacing below section */
-  border: 1px solid #000;
-  padding: 10px;
-}
-
-.section .col {
-  width: 32%;
-}
-
-.po-table {
   width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 15px;
+  max-width: 210mm;
+  padding: 10mm;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+  box-sizing: border-box;
+  position: relative;
+
+
+  /* Company GST and LUT details - same style as sales */
+  .company-details {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    page-break-inside: avoid;
+
+    .left-details,
+    .right-details {
+      p {
+        margin: 3px 0;
+        text-align: center;
+        font-size: 11px;
+      }
+    }
+
+    .middle-details {
+      h3 {
+        margin: 0;
+        font-size: 16px;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .invoice-po-section {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #000;
+    page-break-inside: avoid;
+
+    .po-details {
+      text-align: left;
+
+      p {
+        margin: 3px 0;
+        font-weight: bold;
+      }
+    }
+  }
+
+  .party-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 4%;
+    page-break-inside: avoid;
+
+    .party-card {
+      width: 48%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+      font-size: 11px;
+
+      h3 {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+      }
+
+      p {
+        margin: 5px 0;
+        word-break: break-word;
+      }
+    }
+  }
+
+  .items-container {
+    margin-bottom: 20px;
+    // Allow the container to break across pages
+    page-break-inside: auto;
+  }
+
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+
+    // Allow the table to break across pages
+    page-break-inside: auto;
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 5px;
+      text-align: left;
+      word-break: break-word;
+      font-size: 10px !important;
+      line-height: 1.25;
+    }
+
+    th {
+      background: #f5f5f5;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    // CRITICAL: Prevent individual rows from breaking across pages
+    tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    // Ensure table header repeats on each page
+    thead {
+      display: table-header-group;
+    }
+
+    th.sr-no,
+    td.sr-no {
+      width: 5% !important;
+      text-align: center;
+    }
+
+    td.description-cell {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: normal !important;
+    }
+  }
+
+  .notes-summary-section {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 4%;
+    page-break-inside: avoid;
+
+    .notes-column {
+      width: 48%;
+      box-sizing: border-box;
+
+      .notes-section,
+      .terms-section {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        font-size: 11px;
+
+        h4 {
+          margin: 0 0 5px 0;
+          font-size: 12px;
+        }
+
+        p,
+        pre {
+          margin: 4px 0;
+          white-space: pre-wrap;
+          font-family: inherit;
+          font-size: 11px;
+        }
+      }
+    }
+
+    .summary-column {
+      width: 48%;
+      box-sizing: border-box;
+
+      .amount-details {
+        table {
+          width: 100%;
+          border-collapse: collapse;
+
+          td {
+            padding: 5px;
+            text-align: right;
+            font-size: 11px;
+
+            &:first-child {
+              text-align: left;
+              font-weight: bold;
+            }
+          }
+
+          .total-row {
+            border-top: 1px solid #000;
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+
+  .certification-section {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    align-items: flex-start;
+    page-break-inside: avoid;
+    flex-direction: row;
+    /* Ensure horizontal layout */
+
+    .contact-note {
+      width: 60%;
+      font-style: italic;
+      font-size: 11px;
+      text-align: left;
+      margin-top: 0;
+    }
+
+    .signature-box {
+      width: 35%;
+      text-align: center;
+
+      p {
+        margin: 5px 0;
+        font-size: 11px;
+      }
+
+      .signature-line {
+        width: 200px;
+        height: 1px;
+        background: #000;
+        margin: 15px auto;
+      }
+    }
+  }
+
+  .jurisdiction-note {
+    text-align: center;
+    margin-top: 20px;
+    font-weight: bold;
+    page-break-before: avoid;
+    font-size: 11px;
+  }
 }
 
-.po-table td:nth-child(3),
-.po-table th:nth-child(3) {
-  width: 200px;
-  word-wrap: break-word;
-  white-space: normal;
-  text-align: left;
-}
+/* ----------------- PRINT RULES ----------------- */
+@media print {
 
-.po-table th,
-.po-table td {
-  border: 1px solid #000;
-  padding: 6px;
-  text-align: center;
-  vertical-align: middle;
-}
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
 
+  #po-pdf {
+    width: 210mm !important;
+    // height: 297mm !important; 
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
 
+  #po-pdf .main-content {
+    display: block;
+    margin: 0;
+  }
 
-.summary {
-  text-align: right;
-  margin-right: 20px;
-  font-weight: bold;
-  border-top: 1px solid #000;
-  padding-top: 10px;
-}
+  // Ensure table headers repeat on each page
+  .items-table thead {
+    display: table-header-group;
+  }
 
-.footer {
-  margin-top: 30px;
-  text-align: right;
-  padding-right: 10px;
-}
+  // Prevent individual rows from breaking
+  .items-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
-.footer .sign {
-  margin-top: 50px;
-  font-weight: bold;
-  text-decoration: underline;
-}
-
-.footer .contact-note {
-  margin-top: 30px;
-  text-align: left;
-  font-style: italic;
-  font-size: 11px;
-  padding-left: 10px;
-}
-
-/* Selection highlight */
-tr.selected {
-  background-color: #eef;
-  font-weight: bold;
-}
-
-.qr-section-left {
-  display: flex;
-  justify-content: flex-start;
-  margin: 30px 0;
-}
-
-.qr-wrapper {
-  text-align: left;
+  // Allow the table to break across pages
+  .items-table {
+    page-break-inside: auto;
+  }
 }

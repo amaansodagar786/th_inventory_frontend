@@ -12,7 +12,7 @@ const Footer = () => {
       fontSize: '14px',
     }}>
       <p style={{ margin: 0 }}>
-        Designed by <span style={{ fontWeight: 600 }}>Finiit</span> and Developed by <span style={{ fontWeight: 600 }}>Techorses</span>
+        Designed and Developed by <span style={{ fontWeight: 600 }}>Techorses</span>
       </p>
     </footer>
   );
