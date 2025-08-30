@@ -66,18 +66,28 @@ const Customer = () => {
   }, []);
 
   // Filtered customers
+  // Filtered customers
   const filteredCustomers = useMemo(() => {
     if (!debouncedSearch) return customers;
 
     return customers.filter((cust) => {
-      // Only search in selected fields
+      // Search in all specified fields
       return (
         cust.customerName?.toLowerCase().includes(debouncedSearch) ||
+        cust.companyName?.toLowerCase().includes(debouncedSearch) ||
         cust.gstNumber?.toLowerCase().includes(debouncedSearch) ||
-        cust.email?.toLowerCase().includes(debouncedSearch)
+        cust.email?.toLowerCase().includes(debouncedSearch) ||
+        cust.email2?.toLowerCase().includes(debouncedSearch) ||
+        cust.email3?.toLowerCase().includes(debouncedSearch) ||
+        cust.contactNumber?.toLowerCase().includes(debouncedSearch) ||
+        cust.contactNumber2?.toLowerCase().includes(debouncedSearch) ||
+        cust.contactNumber3?.toLowerCase().includes(debouncedSearch) ||
+        cust.address?.toLowerCase().includes(debouncedSearch) ||
+        cust.city?.toLowerCase().includes(debouncedSearch) ||
+        cust.pincode?.toLowerCase().includes(debouncedSearch)
       );
     });
-  }, [debouncedSearch, customers]);
+  }, [debouncedSearch, customers]); // Fixed: Removed extra closing brace and parenthesis
 
   // Handle row selection
   const selectCustomer = (customerId) => {
