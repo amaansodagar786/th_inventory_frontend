@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, NavLink } from "react-router-dom";
 
 // Image imports
 import user from "../../Assets/profile.png";
 
 // Icon imports
-import { BiLogOut, BiLayout } from "react-icons/bi";
-import { TbLayoutGridAdd, TbCube, TbMessages, TbUsers } from "react-icons/tb";
-import { LuCircleDot, LuFile, LuLayoutGrid } from "react-icons/lu";
+import { BiLogOut, BiLayout, BiLogIn } from "react-icons/bi";
+import { TbLayoutGridAdd, TbMessages, TbUsers } from "react-icons/tb";
+import { LuCircleDot, LuFile } from "react-icons/lu";
 import { PiBasket, PiLightbulbThin } from "react-icons/pi";
 import { CiShoppingBasket } from "react-icons/ci";
 import { HiOutlineHome } from "react-icons/hi";
@@ -15,9 +15,8 @@ import { BsBell } from "react-icons/bs";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { RxCross1 } from "react-icons/rx";
 
-// CSS + Components
+// CSS
 import "./Navbar.css";
-import Menu from "../Menu/Menu";
 
 const Navbar = ({ children }) => {
   const [toggle, setToggle] = useState(false);
@@ -77,10 +76,20 @@ const Navbar = ({ children }) => {
 
         <ul className="side-menu top">
           {menuData.map(({ icon, title, path }, i) => (
-            <Menu Icon={icon} Title={title} path={path} key={i} />
+            <li key={i}>
+              <NavLink to={path}>
+                {icon}
+                <span>{title}</span>
+              </NavLink>
+            </li>
           ))}
           {isLoggedIn && (
-            <Menu Icon={<BiLogOut />} Title="Logout" path="#" onClick={handleLogout} />
+            <li className="logout-menu-item"> {/* Added class for styling */}
+              <button className="sidebar-logout-btn" onClick={handleLogout}> {/* Changed to button with class */}
+                <BiLogOut />
+                <span>Logout</span>
+              </button>
+            </li>
           )}
         </ul>
       </div>
@@ -95,14 +104,14 @@ const Navbar = ({ children }) => {
           </div>
           <div>
             {!isLoggedIn ? (
-              <button className="login-button" onClick={handleLogin}>
-                Login
+              <button className="icon-button" onClick={handleLogin} title="Login"> {/* Changed to icon button */}
+                <BiLogIn />
               </button>
             ) : (
               <div className="profile">
                 <img src={user} alt="Profile" />
-                <button className="logout-button" onClick={handleLogout}>
-                  Logout
+                <button className="icon-button" onClick={handleLogout} title="Logout"> {/* Changed to icon button */}
+                  <BiLogOut />
                 </button>
               </div>
             )}
