@@ -12,6 +12,9 @@ import Navbar from "../../Components/Sidebar/Navbar";
 import "../Form/Form.scss";
 import "./Customer.scss";
 import "react-toastify/dist/ReactToastify.css";
+import CustomerPDFTemplate from './CustomerPDFTemplate';
+import ReactDOM from 'react-dom/client';
+
 
 const Customer = () => {
   const [showForm, setShowForm] = useState(false);
@@ -95,6 +98,7 @@ const Customer = () => {
   };
 
   // Export single customer as PDF
+  // Export single customer as PDF
   const exportAsPdf = () => {
     if (!selectedCustomer) {
       toast.warning("Please select a customer first");
@@ -103,69 +107,60 @@ const Customer = () => {
 
     const customer = customers.find((c) => c.customerId === selectedCustomer);
 
-    const content = `
-<div style="font-family: 'Arial', sans-serif; padding: 30px; background: #fff;">
-  <h1 style="color: #3f3f91; text-align: center; margin-bottom: 20px; font-size: 24px;">
-    Customer Details
-  </h1>
+    // Create a temporary div to render the PDF template
+    const tempDiv = document.createElement('div');
+    document.body.appendChild(tempDiv);
 
-  <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
-    <h2 style="color: #3f3f91; margin-bottom: 15px; font-size: 20px;">
-      ${customer.customerName}
-    </h2>
-    <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 15px;" />
+    // Use ReactDOM to render the element
+    const root = ReactDOM.createRoot(tempDiv);
+    root.render(<CustomerPDFTemplate customer={customer} />);
 
-    <p style="margin: 10px 0; font-size: 14px;">
-      <strong>Company Name:</strong> ${customer.companyName || 'N/A'}
-    </p>
+    // Wait for the component to render
+    setTimeout(() => {
+      const content = tempDiv.innerHTML;
 
-    <p style="margin: 10px 0; font-size: 14px;">
-      <strong>GST Number:</strong> ${customer.gstNumber || 'N/A'}
-    </p>
-    
-    <p style="margin: 10px 0; font-size: 14px;">
-      <strong>Primary Email:</strong> ${customer.email || 'N/A'}
-    </p>
-    ${customer.email2 ? `<p style="margin: 10px 0; font-size: 14px;">
-      <strong>Secondary Email:</strong> ${customer.email2}
-    </p>` : ''}
-    ${customer.email3 ? `<p style="margin: 10px 0; font-size: 14px;">
-      <strong>Tertiary Email:</strong> ${customer.email3}
-    </p>` : ''}
-    
-    <p style="margin: 10px 0; font-size: 14px;">
-      <strong>Primary Contact:</strong> ${customer.contactNumber || 'N/A'}
-    </p>
-    ${customer.contactNumber2 ? `<p style="margin: 10px 0; font-size: 14px;">
-      <strong>Secondary Contact:</strong> ${customer.contactNumber2}
-    </p>` : ''}
-    ${customer.contactNumber3 ? `<p style="margin: 10px 0; font-size: 14px;">
-      <strong>Tertiary Contact:</strong> ${customer.contactNumber3}
-    </p>` : ''}
-    
-    <p style="margin: 10px 0; font-size: 14px;">
-      <strong>Address:</strong> ${customer.address || 'N/A'}
-    </p>
+      const opt = {
+        margin: [20, 10, 20, 10], // Top, Right, Bottom, Left (in mm)
+        filename: `${customer.customerName}_details.pdf`,
+        image: { type: "jpeg", quality: 1 },
+        html2canvas: {
+          scale: 3,
+          useCORS: true,
+          logging: false
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait"
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
 
-    <p style="margin: 10px 0; font-size: 14px;">
-  <strong>City:</strong> ${customer.city || 'N/A'}
-</p>
-<p style="margin: 10px 0; font-size: 14px;">
-  <strong>Pincode:</strong> ${customer.pincode || 'N/A'}
-</p>
-  </div>
-</div>
-`;
+      html2pdf()
+        .set(opt)
+        .from(content)
+        .toPdf()
+        .get('pdf')
+        .then(function (pdf) {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(10);
+            pdf.setTextColor(150);
+            pdf.text(
+              'Page ' + i + ' of ' + totalPages,
+              pdf.internal.pageSize.getWidth() / 2,
+              pdf.internal.pageSize.getHeight() - 10,
+              { align: 'center' }
+            );
+          }
+        })
+        .save();
 
-    const opt = {
-      margin: 10,
-      filename: `${customer.customerName}_details.pdf`,
-      image: { type: "jpeg", quality: 1 },
-      html2canvas: { scale: 3 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    };
-
-    html2pdf().from(content).set(opt).save();
+      // Clean up
+      root.unmount();
+      document.body.removeChild(tempDiv);
+    }, 100);
   };
 
   // Export all customers as Excel

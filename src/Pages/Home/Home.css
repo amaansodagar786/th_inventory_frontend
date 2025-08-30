@@ -93,12 +93,28 @@
 }
 
 .alert-section li {
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid;
+  display: flex;
+  justify-content: start;
+  align-items: center;
+  gap: 1rem;
 }
 
 .alert-section li:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.low-stock-alert li {
+  border-left-color: #f6c23e;
+}
+
+.out-of-stock-alert li {
+  border-left-color: #e74a3b;
 }
 
 /* Metrics Grid */
@@ -209,12 +225,30 @@
 }
 
 .pending-item {
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pending-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.work-orders-pending .pending-item {
+  border-left-color: #2196f3;
+}
+
+.grns-pending .pending-item {
+  border-left-color: #4caf50;
 }
 
 .pending-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .pending-item p {

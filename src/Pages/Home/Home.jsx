@@ -175,7 +175,8 @@ const Home = () => {
                     .slice(0, 5)
                     .map(item => (
                       <li key={item.inventoryId}>
-                        {item.itemName} - {item.currentStock} left (min: {item.minimumQty})
+                        <span>{item.itemName}</span> :
+                        <span> {item.currentStock} left (min: {item.minimumQty})</span>
                       </li>
                     ))}
                   {inventoryData.filter(item => item.currentStock > 0 && item.currentStock <= item.minimumQty).length === 0 && (
@@ -193,7 +194,10 @@ const Home = () => {
                     .filter(item => item.currentStock <= 0)
                     .slice(0, 5)
                     .map(item => (
-                      <li key={item.inventoryId}>{item.itemName}</li>
+                      <li key={item.inventoryId}>
+                        <span>{item.itemName}</span>
+                        <span>Out of stock</span>
+                      </li>
                     ))}
                   {inventoryData.filter(item => item.currentStock <= 0).length === 0 && (
                     <li>No out of stock items</li>

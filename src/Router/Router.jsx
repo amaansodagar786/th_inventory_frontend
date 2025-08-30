@@ -29,12 +29,16 @@ const Router = () => {
         }}>
 
           <Routes>
-            <Route path="/" element={<Home />} />
+            {/* <Route path="/" element={<Home />} />  */}
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
 
 
-
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            } />
             {/* <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} /> */}
             <Route path="/customer" element={<ProtectedRoute><Customer /></ProtectedRoute>} />
             <Route path="/vendor" element={<ProtectedRoute><Vendor /></ProtectedRoute>} />

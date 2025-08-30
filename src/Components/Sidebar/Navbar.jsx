@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 
-// Image imports
-import user from "../../Assets/profile.png";
-
 // Icon imports
 import { BiLogOut, BiLayout, BiLogIn } from "react-icons/bi";
 import { TbLayoutGridAdd, TbMessages, TbUsers } from "react-icons/tb";
@@ -14,6 +11,7 @@ import { HiOutlineHome } from "react-icons/hi";
 import { BsBell } from "react-icons/bs";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { RxCross1 } from "react-icons/rx";
+import { FiUser } from "react-icons/fi"; // profile icon
 
 // CSS
 import "./Navbar.css";
@@ -77,15 +75,19 @@ const Navbar = ({ children }) => {
         <ul className="side-menu top">
           {menuData.map(({ icon, title, path }, i) => (
             <li key={i}>
-              <NavLink to={path}>
-                {icon}
-                <span>{title}</span>
+              <NavLink
+                to={path}
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <span className="menu-icon">{icon}</span>
+                <span className="menu-title">{title}</span>
               </NavLink>
             </li>
           ))}
+
           {isLoggedIn && (
-            <li className="logout-menu-item"> {/* Added class for styling */}
-              <button className="sidebar-logout-btn" onClick={handleLogout}> {/* Changed to button with class */}
+            <li className="logout-menu-item">
+              <button className="sidebar-logout-btn" onClick={handleLogout}>
                 <BiLogOut />
                 <span>Logout</span>
               </button>
@@ -104,13 +106,16 @@ const Navbar = ({ children }) => {
           </div>
           <div>
             {!isLoggedIn ? (
-              <button className="icon-button" onClick={handleLogin} title="Login"> {/* Changed to icon button */}
+              <button className="icon-button" onClick={handleLogin} title="Login">
                 <BiLogIn />
               </button>
             ) : (
               <div className="profile">
-                <img src={user} alt="Profile" />
-                <button className="icon-button" onClick={handleLogout} title="Logout"> {/* Changed to icon button */}
+                {/* profile icon instead of image */}
+                <div className="profile-icon" title="Account">
+                  <FiUser />
+                </div>
+                <button className="icon-button" onClick={handleLogout} title="Logout">
                   <BiLogOut />
                 </button>
               </div>

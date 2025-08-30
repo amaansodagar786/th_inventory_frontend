@@ -8,7 +8,7 @@ import axios from 'axios';
 import './Register.scss';
 import 'react-toastify/dist/ReactToastify.css';
 
-const Register = ({ onSwitchToLogin }) => {
+const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -88,125 +88,136 @@ const Register = ({ onSwitchToLogin }) => {
 
   return (
     <div className="register-container">
-      <ToastContainer 
-        position="top-center"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-      
-      <div className="register-card">
-        <h2 className="register-title">Create Account</h2>
-        <p className="register-subtitle">Join us today!</p>
-        
-        <form onSubmit={formik.handleSubmit} className="register-form">
-          <div className="form-group">
-            <label htmlFor="name" className="form-label">
-              <FiUser className="input-icon" />
-              Full Name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              value={formik.values.name}
-              className={`form-input ${formik.touched.name && formik.errors.name ? 'error' : ''}`}
-            />
-            {formik.touched.name && formik.errors.name ? (
-              <div className="error-message">{formik.errors.name}</div>
-            ) : null}
-          </div>
+      <ToastContainer />
+      <div className="register-wrapper">
+        {/* LEFT: form section (previously on right in login) */}
+        <div className="register-left">
+          {/* decorative rectangle behind the glass card */}
+          <div className="form-bg" aria-hidden="true" />
 
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              <FiMail className="input-icon" />
-              Email Address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              value={formik.values.email}
-              className={`form-input ${formik.touched.email && formik.errors.email ? 'error' : ''}`}
-            />
-            {formik.touched.email && formik.errors.email ? (
-              <div className="error-message">{formik.errors.email}</div>
-            ) : null}
-          </div>
+          {/* the translucent glass card with the actual form */}
+          <div className="glass-card">
+            <h2 className="register-title">Create Account</h2>
+            <p className="register-subtitle">Join us today!</p>
 
-          <div className="form-group">
-            <label htmlFor="phone" className="form-label">
-              <FiPhone className="input-icon" />
-              Phone Number
-            </label>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              value={formik.values.phone}
-              className={`form-input ${formik.touched.phone && formik.errors.phone ? 'error' : ''}`}
-            />
-            {formik.touched.phone && formik.errors.phone ? (
-              <div className="error-message">{formik.errors.phone}</div>
-            ) : null}
-          </div>
+            <form onSubmit={formik.handleSubmit} className="register-form">
+              <div className="form-group">
+                <label htmlFor="name" className="form-label">
+                  <FiUser className="input-icon" />
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.name}
+                  className={`form-input ${formik.touched.name && formik.errors.name ? 'error' : ''}`}
+                />
+                {formik.touched.name && formik.errors.name ? (
+                  <div className="error-message">{formik.errors.name}</div>
+                ) : null}
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              <FiLock className="input-icon" />
-              Password
-            </label>
-            <div className="password-input-container">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                value={formik.values.password}
-                className={`form-input ${formik.touched.password && formik.errors.password ? 'error' : ''}`}
-              />
+              <div className="form-group">
+                <label htmlFor="email" className="form-label">
+                  <FiMail className="input-icon" />
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.email}
+                  className={`form-input ${formik.touched.email && formik.errors.email ? 'error' : ''}`}
+                />
+                {formik.touched.email && formik.errors.email ? (
+                  <div className="error-message">{formik.errors.email}</div>
+                ) : null}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="phone" className="form-label">
+                  <FiPhone className="input-icon" />
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.phone}
+                  className={`form-input ${formik.touched.phone && formik.errors.phone ? 'error' : ''}`}
+                />
+                {formik.touched.phone && formik.errors.phone ? (
+                  <div className="error-message">{formik.errors.phone}</div>
+                ) : null}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">
+                  <FiLock className="input-icon" />
+                  Password
+                </label>
+                <div className="password-input-container">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    value={formik.values.password}
+                    className={`form-input ${formik.touched.password && formik.errors.password ? 'error' : ''}`}
+                  />
+                  <button 
+                    type="button" 
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+                {formik.touched.password && formik.errors.password ? (
+                  <div className="error-message">{formik.errors.password}</div>
+                ) : null}
+              </div>
+
               <button 
-                type="button" 
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
+                type="submit" 
+                className="submit-button"
+                disabled={isSubmitting}
               >
-                {showPassword ? <FiEyeOff /> : <FiEye />}
+                {isSubmitting ? 'Registering...' : 'Register'}
+              </button>
+            </form>
+
+            <div className="switch-auth">
+              Already have an account? 
+              <button 
+                onClick={handleSwitchToLogin} 
+                className="switch-button"
+              >
+                Login here
               </button>
             </div>
-            {formik.touched.password && formik.errors.password ? (
-              <div className="error-message">{formik.errors.password}</div>
-            ) : null}
           </div>
+        </div>
 
-          <button 
-            type="submit" 
-            className="submit-button"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Registering...' : 'Register'}
-          </button>
-        </form>
-
-        <div className="switch-auth">
-          Already have an account? 
-          <button 
-            onClick={handleSwitchToLogin} 
-            className="switch-button"
-          >
-            Login here
-          </button>
+        {/* RIGHT: welcome text (previously on left in login) */}
+        <div className="register-right">
+          <div className="right-inner">
+            <div className="logo-placeholder">TH</div>
+            <h1 className="welcome-title">Welcome!</h1>
+            <div className="divider" />
+            <p className="welcome-desc">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            </p>
+          </div>
         </div>
       </div>
     </div>
