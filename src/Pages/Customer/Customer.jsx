@@ -66,28 +66,18 @@ const Customer = () => {
   }, []);
 
   // Filtered customers
-  // Filtered customers
   const filteredCustomers = useMemo(() => {
     if (!debouncedSearch) return customers;
 
     return customers.filter((cust) => {
-      // Search in all specified fields
+      // Only search in selected fields
       return (
         cust.customerName?.toLowerCase().includes(debouncedSearch) ||
-        cust.companyName?.toLowerCase().includes(debouncedSearch) ||
         cust.gstNumber?.toLowerCase().includes(debouncedSearch) ||
-        cust.email?.toLowerCase().includes(debouncedSearch) ||
-        cust.email2?.toLowerCase().includes(debouncedSearch) ||
-        cust.email3?.toLowerCase().includes(debouncedSearch) ||
-        cust.contactNumber?.toLowerCase().includes(debouncedSearch) ||
-        cust.contactNumber2?.toLowerCase().includes(debouncedSearch) ||
-        cust.contactNumber3?.toLowerCase().includes(debouncedSearch) ||
-        cust.address?.toLowerCase().includes(debouncedSearch) ||
-        cust.city?.toLowerCase().includes(debouncedSearch) ||
-        cust.pincode?.toLowerCase().includes(debouncedSearch)
+        cust.email?.toLowerCase().includes(debouncedSearch)
       );
     });
-  }, [debouncedSearch, customers]); // Fixed: Removed extra closing brace and parenthesis
+  }, [debouncedSearch, customers]);
 
   // Handle row selection
   const selectCustomer = (customerId) => {
@@ -807,16 +797,17 @@ const Customer = () => {
 
 
                   <div className="form-field">
-                    <label><FaMapMarkerAlt /> Address</label>
+                    <label><FaMapMarkerAlt /> Address *</label> {/* Added asterisk to indicate required */}
                     <Field name="address" as="textarea" rows="3" />
+                    <ErrorMessage name="address" component="div" className="error" /> {/* Added error message */}
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-field">
-                    <label><FaMapMarkerAlt /> Address *</label>
-                    <Field name="address" as="textarea" rows="3" />
-                    <ErrorMessage name="address" component="div" className="error" />
+                    <label><FaMapMarkerAlt /> City *</label>
+                    <Field name="city" type="text" />
+                    <ErrorMessage name="city" component="div" className="error" />
                   </div>
 
                   <div className="form-field">
