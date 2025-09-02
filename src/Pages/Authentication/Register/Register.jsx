@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Register.scss';
 import 'react-toastify/dist/ReactToastify.css';
+import logo from "../../../Assets/logo/bg_logo.png";
+
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -211,7 +213,7 @@ const Register = () => {
         {/* RIGHT: welcome text (previously on left in login) */}
         <div className="register-right">
           <div className="right-inner">
-            <div className="logo-placeholder">TH</div>
+            <img src={logo} alt="Logo" className="left-logo" />
             <h1 className="welcome-title">Welcome!</h1>
             <div className="divider" />
             <p className="welcome-desc">

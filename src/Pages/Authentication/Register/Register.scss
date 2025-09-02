@@ -20,6 +20,9 @@
   padding: 24px;
   font-family: "Poppins", sans-serif;
   background: linear-gradient(135deg, #f7fbff 0%, #ffffff 55%);
+  background: linear-gradient(135deg,
+      rgba(122, 95, 255, 0.10),
+      rgba(74, 108, 247, 0.08));
 }
 
 .register-wrapper {
@@ -42,6 +45,8 @@
   justify-content: center;
   position: relative;
   background: transparent;
+  background: linear-gradient(180deg, #ffffffaa 0%, #ffffffaa 100%);
+
 }
 
 .form-bg {
@@ -49,8 +54,8 @@
   left: 56px;
   top: 50%;
   transform: translateY(-50%) rotate(2deg);
-  width: 420px;
-  height: 420px;
+  width: 430px;
+  height: 620px;
   border-radius: 12px;
   z-index: 1;
   background: linear-gradient(135deg, rgba(122, 95, 255, 0.10), rgba(74, 108, 247, 0.08));
@@ -197,6 +202,8 @@
 .register-right {
   flex: 1;
   background: linear-gradient(180deg, #f3f8ff 0%, #ffffff 100%);
+  background: linear-gradient(180deg, #ffffffaa 0%, #ffffffaa 100%);
+
   display: flex;
   align-items: center;
   padding: 64px;
@@ -233,6 +240,17 @@
     justify-content: center;
     font-weight: 700;
     margin-bottom: 18px;
+  }
+   .left-logo {
+    width: 50px;
+    /* adjust size as you want */
+    height: auto;
+    border-radius: 8px;
+    /* keep rounded corners like placeholder */
+    margin-bottom: 18px;
+    object-fit: contain;
+    // padding: 1px;
+    background: transparent;
   }
 
   .welcome-title {

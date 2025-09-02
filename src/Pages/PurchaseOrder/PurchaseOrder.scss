@@ -78,7 +78,7 @@
 
     .export-btn {
       background: linear-gradient(to right, #4caf50, #66bb6a);
-      margin-top: 10px;
+      // margin-top: 10px; 
 
       &:hover {
         background: linear-gradient(to right, #388e3c, #4caf50);
@@ -172,7 +172,7 @@ textarea {
   }
 
   .add-btn {
-    margin-top: 10px;
+    margin-top: 10px; 
     padding: 8px 14px;
     background: #7366ff;
     color: white;

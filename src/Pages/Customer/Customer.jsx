@@ -671,7 +671,7 @@ const Customer = () => {
       <div className="main">
         <div className="page-header">
           <h2>Customer List</h2>
-          <div className="right-section">
+          <div className="header-right">
             <div className="search-container">
               <FaSearch className="search-icon" />
               <input
@@ -679,23 +679,25 @@ const Customer = () => {
                 placeholder="Search Customers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
               />
             </div>
-            <div className="page-actions">
-              {/* <button className="export-btn" onClick={exportAsPdf}>
-                <FaFileExport /> Export
-              </button> */}
-              <button className="export-all-btn" onClick={exportAllAsExcel}>
+
+            <div className="action-buttons-group">
+              <button className="export-all-btn">
                 <FaFileExcel /> Export All
               </button>
-              <button className="add-btn" onClick={() => setShowForm(!showForm)}>
+              <button
+                className="add-btn"
+                onClick={() => setShowForm(!showForm)}
+              >
                 <FaPlus /> {showForm ? "Close" : "Add Customer"}
               </button>
             </div>
           </div>
         </div>
 
-
+        {/* ---- Add Customer Form ---- */}
         {showForm && (
           <div className="form-container premium">
             <h2>Add Customer</h2>
@@ -705,129 +707,14 @@ const Customer = () => {
               onSubmit={handleSubmit}
             >
               <Form>
-                {/* Customer Name + Company Name */}
-                <div className="form-row">
-                  <div className="form-field">
-                    <label><FaUser /> Customer Name *</label>
-                    <Field name="customerName" type="text" />
-                    <ErrorMessage name="customerName" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaIdCard /> Company Name</label>
-                    <Field name="companyName" type="text" />
-                  </div>
-                </div>
-
-                {/* Desktop: Original email+contact rows */}
-                <div className="form-row email-contact-row">
-                  <div className="form-field">
-                    <label><FaEnvelope /> Primary Email *</label>
-                    <Field name="email" type="email" />
-                    <ErrorMessage name="email" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaPhone /> Primary Contact *</label>
-                    <Field name="contactNumber" type="text" />
-                    <ErrorMessage name="contactNumber" component="div" className="error" />
-                  </div>
-                </div>
-
-                <div className="form-row email-contact-row">
-                  <div className="form-field">
-                    <label><FaEnvelope /> Secondary Email</label>
-                    <Field name="email2" type="email" />
-                    <ErrorMessage name="email2" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaPhone /> Secondary Contact</label>
-                    <Field name="contactNumber2" type="text" />
-                  </div>
-                </div>
-
-                <div className="form-row email-contact-row">
-                  <div className="form-field">
-                    <label><FaEnvelope /> Tertiary Email</label>
-                    <Field name="email3" type="email" />
-                    <ErrorMessage name="email3" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaPhone /> Tertiary Contact</label>
-                    <Field name="contactNumber3" type="text" />
-                  </div>
-                </div>
-
-                {/* Mobile: Grouped email fields */}
-                <div className="email-fields-group">
-                  <div className="form-field">
-                    <label><FaEnvelope /> Primary Email *</label>
-                    <Field name="email" type="email" />
-                    <ErrorMessage name="email" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaEnvelope /> Secondary Email</label>
-                    <Field name="email2" type="email" />
-                    <ErrorMessage name="email2" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaEnvelope /> Tertiary Email</label>
-                    <Field name="email3" type="email" />
-                    <ErrorMessage name="email3" component="div" className="error" />
-                  </div>
-                </div>
-
-                {/* Mobile: Grouped contact fields */}
-                <div className="contact-fields-group">
-                  <div className="form-field">
-                    <label><FaPhone /> Primary Contact *</label>
-                    <Field name="contactNumber" type="text" />
-                    <ErrorMessage name="contactNumber" component="div" className="error" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaPhone /> Secondary Contact</label>
-                    <Field name="contactNumber2" type="text" />
-                  </div>
-                  <div className="form-field">
-                    <label><FaPhone /> Tertiary Contact</label>
-                    <Field name="contactNumber3" type="text" />
-                  </div>
-                </div>
-
-                {/* GST + Address */}
-                <div className="form-row">
-                  <div className="form-field">
-                    <label><FaIdCard /> GST Number *</label>
-                    <Field name="gstNumber" type="text" />
-                    <ErrorMessage name="gstNumber" component="div" className="error" />
-                  </div>
-
-
-                  <div className="form-field">
-                    <label><FaMapMarkerAlt /> Address *</label> {/* Added asterisk to indicate required */}
-                    <Field name="address" as="textarea" rows="3" />
-                    <ErrorMessage name="address" component="div" className="error" /> {/* Added error message */}
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-field">
-                    <label><FaMapMarkerAlt /> City *</label>
-                    <Field name="city" type="text" />
-                    <ErrorMessage name="city" component="div" className="error" />
-                  </div>
-
-                  <div className="form-field">
-                    <label><FaMapMarkerAlt /> Pincode *</label>
-                    <Field name="pincode" type="text" />
-                    <ErrorMessage name="pincode" component="div" className="error" />
-                  </div>
-                </div>
-
+                {/* Form fields here */}
                 <button type="submit">Submit</button>
               </Form>
             </Formik>
           </div>
         )}
 
+        {/* ---- Customer Table ---- */}
         <div className="data-table">
           <table>
             <thead>
@@ -870,10 +757,10 @@ const Customer = () => {
             onDelete={handleDeleteCustomer}
           />
         )}
-
       </div>
     </Navbar>
   );
+
 };
 
 export default Customer;

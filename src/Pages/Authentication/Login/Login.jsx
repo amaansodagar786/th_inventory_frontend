@@ -6,6 +6,7 @@ import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./Login.scss";
+import logo from "../../../Assets/logo/bg_logo.png";
 import "react-toastify/dist/ReactToastify.css";
 
 const Login = () => {
@@ -47,13 +48,18 @@ const Login = () => {
         {/* LEFT: welcome text */}
         <div className="login-left">
           <div className="left-inner">
-            <div className="logo-placeholder">TH</div>
-            <h1 className="welcome-title">Welcome!</h1>
+            <img src={logo} alt="Logo" className="left-logo" />
+            <h1 className="welcome-title">Welcome Back!</h1>
             <div className="divider" />
             <p className="welcome-desc">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
             </p>
-            {/* <button className="left-button"></button>  */}
+            <div className="left-footer-home">
+              <p>Want to return back?</p>
+              <button onClick={() => navigate("/")} className="home-button">
+                Go to Home
+              </button>
+            </div>
           </div>
         </div>
 

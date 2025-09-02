@@ -183,6 +183,7 @@
 }
 
 /* Pending Actions Section */
+/* Pending Actions Section */
 .pending-actions {
   display: grid;
   grid-template-columns: 1fr;
@@ -224,9 +225,22 @@
   margin-top: 15px;
 }
 
+/* New grid layout for pending items */
+.pending-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .pending-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+}
+
 .pending-item {
-  padding: 15px;
-  margin-bottom: 12px;
+  padding: 7px;
   border-radius: 8px;
   background-color: white;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
@@ -247,19 +261,16 @@
   border-left-color: #4caf50;
 }
 
-.pending-item:last-child {
-  margin-bottom: 0;
-}
-
 .pending-item p {
   margin: 0;
   font-weight: 500;
   color: #333;
+  font-size: 0.9rem ;
 }
 
 .pending-item small {
   color: #666;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .no-pending {
@@ -267,6 +278,9 @@
   font-style: italic;
   padding: 10px 0;
 }
+
+
+
 
 /* Charts Section */
 .charts-section {

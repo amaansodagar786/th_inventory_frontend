@@ -562,7 +562,8 @@ const Vendor = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            {/* <div className="page-actions"> */}
+            <div className="action-buttons-group">
               {/* <button className="export-btn" onClick={exportSelectedAsPDF}>
                 <FaFileExport /> Export
               </button> */}

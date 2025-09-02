@@ -51,7 +51,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding-bottom: 15px;
+  padding-bottom: 10px; 
+  padding-top: 15px; 
   border-bottom: 1px solid #eee;
 
   .right-section {
@@ -71,7 +72,7 @@
       width: 100%;
       padding: 8px 12px 8px 35px;
       border: 1px solid #ddd;
-      border-radius: 6px;
+      // border-radius: 50%; 
       font-size: 14px;
       outline: none;
 

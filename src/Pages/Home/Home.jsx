@@ -155,12 +155,6 @@ const Home = () => {
     <div>
       <Navbar>
         <div className="dashboard-container">
-          {/* Centered Header */}
-          <div className="dashboard-header centered">
-            <h1>Inventory Dashboard</h1>
-            <p>Overview of your operations</p>
-          </div>
-
           {/* Inventory Alerts */}
           <div className="inventory-alerts">
             <h3>Inventory Alerts</h3>
@@ -259,14 +253,16 @@ const Home = () => {
             <div className="pending-section work-orders-pending">
               <h3><FiClock /> Pending Work Orders</h3>
               <div className="pending-list">
-                {pendingWorkOrders.slice(0, 5).map(wo => (
-                  <div key={wo.workOrderNumber} className="pending-item">
-                    <p>WO #{wo.workOrderNumber}</p>
-                    <small>
-                      {wo.workOrderDate} • {wo.items?.length || 0} items
-                    </small>
-                  </div>
-                ))}
+                <div className="pending-grid">
+                  {pendingWorkOrders.slice(0, 4).map(wo => (
+                    <div key={wo.workOrderNumber} className="pending-item">
+                      <p>WO #{wo.workOrderNumber}</p>
+                      <small>
+                        {wo.workOrderDate} • {wo.items?.length || 0} items
+                      </small>
+                    </div>
+                  ))}
+                </div>
                 {pendingWorkOrders.length === 0 && (
                   <div className="no-pending">All work orders have sales</div>
                 )}
@@ -276,14 +272,16 @@ const Home = () => {
             <div className="pending-section grns-pending">
               <h3><FiClock /> Pending GRNs</h3>
               <div className="pending-list">
-                {pendingGRNs.slice(0, 5).map(po => (
-                  <div key={po.poNumber} className="pending-item">
-                    <p>PO #{po.poNumber}</p>
-                    <small>
-                      {po.date} • Vendor: {po.vendorName}
-                    </small>
-                  </div>
-                ))}
+                <div className="pending-grid">
+                  {pendingGRNs.slice(0, 4).map(po => (
+                    <div key={po.poNumber} className="pending-item">
+                      <p>PO #{po.poNumber}</p>
+                      <small>
+                        {po.date} • Vendor: {po.vendorName}
+                      </small>
+                    </div>
+                  ))}
+                </div>
                 {pendingGRNs.length === 0 && (
                   <div className="no-pending">All POs have GRNs</div>
                 )}
