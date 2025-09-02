@@ -175,8 +175,8 @@
 /* ---------- CONTENT ---------- */
 #content {
   position: relative;
-  width: calc(100% - 260px);
-  left: 260px;
+  width: calc(100% - 220px);
+  left: 220px;
   transition: left .3s ease, width .3s ease;
 }
 

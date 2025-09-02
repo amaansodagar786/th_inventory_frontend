@@ -6,10 +6,7 @@
 }
 
 
-
 /* ---------------- PAGE HEADER ---------------- */
-
-
 .page-header {
   max-width: 1200px;
   margin: 0 auto 25px;
@@ -18,7 +15,7 @@
   border-radius: 12px;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
   display: flex;
-  align-items: center;  /* ✅ vertical center */
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 20px;
@@ -32,8 +29,8 @@
 
   .header-right {
     display: flex;
-    align-items: center;  /* ✅ vertical center */
-    gap: 20px; /* spacing between search + buttons */
+    align-items: center;
+    gap: 20px;
     flex-wrap: wrap;
   }
 
@@ -46,8 +43,7 @@
       width: 100%;
       padding: 10px 14px 10px 40px;
       border: none;
-      border-radius: 50px; /* pill shape */
-      
+      border-radius: 50px;
       background: #f5f7fa;
       font-size: 15px;
       color: #333;
@@ -76,7 +72,7 @@
   .action-buttons-group {
     display: flex;
     align-items: center;
-    gap: 12px; /* ✅ spacing between buttons */
+    gap: 12px;
 
     button {
       display: flex;
@@ -89,7 +85,7 @@
       border: none;
       cursor: pointer;
       transition: all 0.25s ease;
-      border-radius: 30px; /* pill */
+      border-radius: 30px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 
       &:hover {
@@ -99,12 +95,23 @@
     }
 
     .export-all-btn {
-      // margin-top: 10px; 
-      background: linear-gradient(135deg, #43a047, #66bb6a);
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      
+      &:hover {
+        background: linear-gradient(135deg, #219653, #27ae60);
+        box-shadow: 0 6px 14px rgba(39, 174, 96, 0.4);
+      }
     }
 
     .add-btn {
-      background: linear-gradient(135deg, #ff7043, #ff8a65);
+      background: linear-gradient(135deg, #e67e22, #f39c12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      
+      &:hover {
+        background: linear-gradient(135deg, #d35400, #e67e22);
+        box-shadow: 0 6px 14px rgba(230, 126, 34, 0.4);
+      }
     }
   }
 }

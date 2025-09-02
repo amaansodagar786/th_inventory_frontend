@@ -7,7 +7,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Register.scss';
 import 'react-toastify/dist/ReactToastify.css';
-import logo from "../../../Assets/logo/bg_logo.png";
+// import logo from "../../../Assets/logo/bg_logo.png";
+import logo from "../../../Assets/logo/th_logo.png";
+// import logo from "../../../Assets/logo/th.png";  
 
 
 const Register = () => {
@@ -40,10 +42,10 @@ const Register = () => {
     onSubmit: async (values) => {
       try {
         setIsSubmitting(true);
-        
+
         // Call register API
         const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/register`, values);
-        
+
         // Show success toast
         toast.success('Successful! Redirecting to login...', {
           position: "top-center",
@@ -54,20 +56,20 @@ const Register = () => {
           draggable: true,
           progress: undefined,
         });
-        
+
         // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate('/login');
         }, 3000);
-        
+
       } catch (error) {
         console.error('Registration error:', error);
-        
+
         let errorMessage = 'Registration failed';
         if (error.response) {
           errorMessage = error.response.data.message || errorMessage;
         }
-        
+
         // Show error toast
         toast.error(errorMessage, {
           position: "top-center",
@@ -175,8 +177,8 @@ const Register = () => {
                     value={formik.values.password}
                     className={`form-input ${formik.touched.password && formik.errors.password ? 'error' : ''}`}
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="password-toggle"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
@@ -189,8 +191,8 @@ const Register = () => {
                 ) : null}
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="submit-button"
                 disabled={isSubmitting}
               >
@@ -199,9 +201,9 @@ const Register = () => {
             </form>
 
             <div className="switch-auth">
-              Already have an account? 
-              <button 
-                onClick={handleSwitchToLogin} 
+              Already have an account?
+              <button
+                onClick={handleSwitchToLogin}
                 className="switch-button"
               >
                 Login here
@@ -217,7 +219,7 @@ const Register = () => {
             <h1 className="welcome-title">Welcome!</h1>
             <div className="divider" />
             <p className="welcome-desc">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Begin your journey with the company’s inventory portal. From purchase orders to sales, handle every process with ease and accuracy.
             </p>
           </div>
         </div>

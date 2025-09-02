@@ -6,7 +6,9 @@ import { ToastContainer, toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./Login.scss";
-import logo from "../../../Assets/logo/bg_logo.png";
+// import logo from "../../../Assets/logo/bg_logo.png"; 
+import logo from "../../../Assets/logo/th_logo.png";
+// import logo from "../../../Assets/logo/th.png";  
 import "react-toastify/dist/ReactToastify.css";
 
 const Login = () => {
@@ -52,14 +54,16 @@ const Login = () => {
             <h1 className="welcome-title">Welcome Back!</h1>
             <div className="divider" />
             <p className="welcome-desc">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Access powerful tools for inventory control, from GRNs and BOMs to work orders and sales. Log in to keep your business operations organized and efficient.
             </p>
-            <div className="left-footer-home">
-              <p>Want to return back?</p>
-              <button onClick={() => navigate("/")} className="home-button">
-                Go to Home
-              </button>
-            </div>
+            {localStorage.getItem("token") && (
+              <div className="left-footer-home">
+                <p>Want to return back?</p>
+                <button onClick={() => navigate("/")} className="home-button">
+                  Go to Home
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
