@@ -164,14 +164,18 @@ const Customer = () => {
   };
 
   // Export all customers as Excel
+
   const exportAllAsExcel = () => {
-    if (customers.length === 0) {
+    // Use filteredCustomers instead of customers
+    const dataToExport = filteredCustomers.length > 0 ? filteredCustomers : customers;
+
+    if (dataToExport.length === 0) {
       toast.warning("No customers to export");
       return;
     }
 
     const worksheet = XLSX.utils.json_to_sheet(
-      customers.map((customer) => ({
+      dataToExport.map((customer) => ({
         Name: customer.customerName,
         "Company Name": customer.companyName,
         "GST No.": customer.gstNumber,
@@ -189,7 +193,13 @@ const Customer = () => {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
-    XLSX.writeFile(workbook, "all_customers.xlsx");
+
+    // Use a filename that indicates if it's filtered data
+    const filename = filteredCustomers.length === customers.length
+      ? "all_customers.xlsx"
+      : "filtered_customers.xlsx";
+
+    XLSX.writeFile(workbook, filename);
   };
 
   // Form initial values
@@ -684,7 +694,7 @@ const Customer = () => {
             </div>
 
             <div className="action-buttons-group">
-              <button className="export-all-btn">
+              <button className="export-all-btn" onClick={exportAllAsExcel}>
                 <FaFileExcel /> Export All
               </button>
               <button

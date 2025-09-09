@@ -4,7 +4,7 @@
     justify-content: space-between;
     align-items: center;
     margin: 30px auto;
-    max-width: 1200px;
+    max-width: 1300px;
     padding: 0 20px;
 
     .right-section {
@@ -23,7 +23,7 @@
         width: 100%;
         padding: 8px 12px 8px 35px;
         border: 1px solid #ddd;
-        border-radius: 50%;
+        border-radius: 6px;
         font-size: 14px;
         outline: none;
 
@@ -85,7 +85,7 @@
   }
 
   .data-table {
-    max-width: 1200px;
+    max-width: 1300px;
     margin: 30px auto;
     background: white;
     border-radius: 10px;
@@ -148,8 +148,8 @@
 .alert {
   color: #d32f2f;
   font-weight: 500;
-  padding: 4px 8px;
-  background-color: #ffebee;
+  // padding: 4px 8px; 
+  // background-color: #ffebee; 
   border-radius: 4px;
 }
 

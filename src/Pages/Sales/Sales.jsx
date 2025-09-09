@@ -3,7 +3,7 @@ import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import html2pdf from "html2pdf.js";
 import { toast, ToastContainer } from "react-toastify";
-import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaFileCode, FaUpload, FaSpinner } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaFileCode, FaUpload, FaSpinner, FaTrash, FaSave, FaEdit } from "react-icons/fa";
 import Navbar from "../../Components/Sidebar/Navbar";
 import SalesPrint from "./SalesPrint";
 import "react-toastify/dist/ReactToastify.css";
@@ -238,7 +238,7 @@ const Sales = () => {
     lrDate: Yup.string().required("LR Date is required"),
     vehicleNumber: Yup.string().required("Vehicle Number is required"),
     transporter: Yup.string().required("Transporter Name is required"),
-    transportMobile: Yup.string().required("Transporter Mobile is required"),
+    transportMobile: Yup.string().required("Transporter Mobile is required").matches(/^[6-9]\d{9}$/, "Please enter a valid 10-digit mobile number"),
 
     receiver: Yup.object({
       companyName: Yup.string().required("Company name required"),
@@ -268,17 +268,11 @@ const Sales = () => {
         quantity: Yup.number()
           .required("Quantity required")
           .moreThan(0, "Quantity must be greater than 0")
+          .typeError("Quantity must be a number")
           .test(
-            'max-qty',
-            function (value) {
-              const path = this.path;
-              const itemIndex = path.split('.')[1];
-              const currentItem = this.parent;
-              if (currentItem._remainingQty !== undefined) {
-                return value <= currentItem._remainingQty;
-              }
-              return true;
-            }
+            'is-decimal',
+            'Quantity can have up to 2 decimal places',
+            value => value === undefined || /^\d+(\.\d{1,2})?$/.test(value)
           ),
         unitPrice: Yup.number().required("Unit price required").moreThan(0),
         units: Yup.string().required("Unit is required")
@@ -365,32 +359,19 @@ const Sales = () => {
     }
   };
 
-  const calculateTotals = (items, otherCharges = 0, receiverGST = "", percentages = {}, taxSlab = 18) => {
+  const calculateTotals = (items, receiverGST = "", percentages = {}, taxSlab = 18) => {
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-
-    // Calculate additional charges (Packet Forwarding, Freight, Inspection)
-    const additionalCharges = {
-      packetForwarding: percentages.packetForwardingPercent ? (subtotal * percentages.packetForwardingPercent) / 100 : 0,
-      freight: percentages.freightPercent ? (subtotal * percentages.freightPercent) / 100 : 0,
-      inspection: percentages.inspectionPercent ? (subtotal * percentages.inspectionPercent) / 100 : 0,
-    };
-
-    // Calculate taxable amount (subtotal + additional charges)
-    const taxableAmount = subtotal +
-      additionalCharges.packetForwarding +
-      additionalCharges.freight +
-      additionalCharges.inspection;
 
     const isIntraState = typeof receiverGST === 'string' && receiverGST.startsWith("24");
 
     // Calculate GST based on selected tax slab
     const taxRate = taxSlab;
-    const cgst = isIntraState ? +(taxableAmount * (taxRate / 2 / 100)).toFixed(2) : 0;
-    const sgst = isIntraState ? +(taxableAmount * (taxRate / 2 / 100)).toFixed(2) : 0;
-    const igst = !isIntraState ? +(taxableAmount * (taxRate / 100)).toFixed(2) : 0;
+    const cgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
+    const sgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
+    const igst = !isIntraState ? +(subtotal * (taxRate / 100)).toFixed(2) : 0;
 
-    // Calculate total before TCS (taxable amount + GST)
-    const totalBeforeTCS = +(taxableAmount + cgst + sgst + igst).toFixed(2);
+    // Calculate total before TCS (subtotal + GST)
+    const totalBeforeTCS = +(subtotal + cgst + sgst + igst).toFixed(2);
 
     // Calculate TCS on the total amount including GST
     const tcs = percentages.tcsPercent ? +(totalBeforeTCS * percentages.tcsPercent / 100).toFixed(2) : 0;
@@ -400,22 +381,15 @@ const Sales = () => {
 
     return {
       subtotal,
-      additionalCharges,
-      packetForwarding: additionalCharges.packetForwarding,
-      freight: additionalCharges.freight,
-      inspection: additionalCharges.inspection,
       tcs,
-      taxableAmount,
+      taxableAmount: subtotal,
       cgst,
       sgst,
       igst,
       total,
-      packetForwardingPercent: percentages.packetForwardingPercent,
-      freightPercent: percentages.freightPercent,
-      inspectionPercent: percentages.inspectionPercent,
       tcsPercent: percentages.tcsPercent,
       isIntraState,
-      taxSlab
+      taxSlab: taxRate
     };
   };
 
@@ -430,15 +404,7 @@ const Sales = () => {
     // 1. Subtotal (items only)
     const subtotal = invoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
 
-    // 2. Extra charges
-    const additionalCharges = {
-      packetForwarding: invoice.packetForwardingPercent ? (subtotal * invoice.packetForwardingPercent) / 100 : 0,
-      freight: invoice.freightPercent ? (subtotal * invoice.freightPercent) / 100 : 0,
-      inspection: invoice.inspectionPercent ? (subtotal * invoice.inspectionPercent) / 100 : 0,
-    };
-    const totalCharges = additionalCharges.packetForwarding + additionalCharges.freight + additionalCharges.inspection;
-
-    // 3. GST calculation (on subtotal only)
+    // 2. GST calculation (on subtotal only)
     const isIntraState = invoice.receiver.gstin && invoice.receiver.gstin.startsWith("24");
     const taxRate = invoice.taxSlab;
 
@@ -446,14 +412,14 @@ const Sales = () => {
     const sgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
     const igst = !isIntraState ? +(subtotal * (taxRate / 100)).toFixed(2) : 0;
 
-    // 4. TCS (on subtotal + GST)
+    // 3. TCS (on subtotal + GST)
     const baseWithGST = subtotal + cgst + sgst + igst;
     const tcs = invoice.tcsPercent ? +(baseWithGST * invoice.tcsPercent / 100).toFixed(2) : 0;
 
-    // 5. Other charges = additional charges + TCS
-    const othChrg = +(totalCharges + tcs).toFixed(2);
+    // 4. Other charges = TCS only
+    const othChrg = +tcs.toFixed(2);
 
-    // 6. Final total
+    // 5. Final total
     const total = +(subtotal + cgst + sgst + igst + othChrg).toFixed(2);
 
     // 7. Item list (AssAmt = TotAmt - Discount)
@@ -486,18 +452,18 @@ const Sales = () => {
       };
     });
 
-    // 8. Invoice totals
+    // 7. Invoice totals
     const valDtls = {
       "AssVal": +subtotal.toFixed(2),  // ✅ only subtotal
       "IgstVal": igst,
       "CgstVal": cgst,
       "SgstVal": sgst,
       "Discount": 0,
-      "OthChrg": othChrg,              // ✅ charges + TCS
+      "OthChrg": othChrg,              // ✅ TCS only
       "TotInvVal": total
     };
 
-    // 9. Return JSON
+    // 8. Return JSON
     return [
       {
         "Version": "1.1",
@@ -568,27 +534,15 @@ const Sales = () => {
       // const numericOtherCharges = Number(values.otherCharges || 0);
       const totals = calculateTotals(
         values.items,
-        0,
-        values.receiver.gstin || "", // Ensure this is a string
+        values.receiver.gstin || "",
         {
-          packetForwardingPercent: values.packetForwardingPercent,
-          freightPercent: values.freightPercent,
-          inspectionPercent: values.inspectionPercent,
           tcsPercent: values.tcsPercent
         },
         values.taxSlab
       );
 
-      // Commented out other charges as requested
-      // const totalOtherCharges = numericOtherCharges +
-      //   totals.packetForwarding +
-      //   totals.freight +
-      //   totals.inspection;
-
-      const totalOtherCharges = totals.packetForwarding +
-        totals.freight +
-        totals.inspection +
-        totals.tcs; // Added TCS
+      // FIX: Only include TCS in other charges since other charges are removed
+      const totalOtherCharges = totals.tcs || 0; // ✅ Only TCS remains
 
       const mainHsnItem = values.items.reduce((maxItem, currentItem) =>
         (currentItem.quantity * currentItem.unitPrice) > (maxItem.quantity * maxItem.unitPrice) ? currentItem : maxItem
@@ -647,7 +601,7 @@ const Sales = () => {
           taxableAmount: item.quantity * item.unitPrice,
           sgstRate: isIntraState ? values.taxSlab / 2 : 0, // Use actual tax rates
           cgstRate: isIntraState ? values.taxSlab / 2 : 0,
-          igstRate: isIntraState ? 0 : 18,
+          igstRate: isIntraState ? 0 : values.taxSlab, // ✅ Use the actual tax slab value
           cessRate: 0,
           cessNonAdvol: 0
         })),
@@ -658,22 +612,18 @@ const Sales = () => {
         sgstValue: totals.sgst,
         igstValue: totals.igst,
         totInvValue: totals.total,
-        OthValue: totalOtherCharges,
+        OthValue: totalOtherCharges, // ✅ Now this will be a number (not null)
         TotNonAdvolVal: 0,
         mainHsnCode: mainHsnItem.hsn
       };
 
       const newInvoice = {
         ...values,
-        // otherCharges: numericOtherCharges, // Commented out
         ...totals,
         terms: values.includeTerms ? TERMS_CONDITIONS : "",
         extraNote: values.extraNote,
         ewayBill: ewayBillData,
-        packetForwarding: totals.additionalCharges.packetForwarding,
-        freight: totals.additionalCharges.freight,
-        inspection: totals.additionalCharges.inspection,
-        tcs: totals.additionalCharges.tcs // Added TCS
+        tcs: totals.tcs // Only TCS remains
       };
 
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/sales/create-sale`, newInvoice);
@@ -725,7 +675,7 @@ const Sales = () => {
       await html2pdf()
         .from(element)
         .set({
-          margin: [25, 10, 5, 10],
+          margin: [35, 10, 5, 10],
           // top=40mm, right=10mm, bottom=25mm, left=10mm
           // -> leaves blank space at top & bottom on EVERY PAGE
 
@@ -809,11 +759,11 @@ const Sales = () => {
 
       const { uploadUrl, fileUrl } = presignedResponse.data;
 
-      // 2. Upload file to S3
+      // 2. Upload file to S3 with proper headers
       await axios.put(uploadUrl, file, {
         headers: {
-          'Content-Type': file.type,
-        },
+          "Content-Type": file.type
+        }
       });
 
       // 3. Save image URL to database
@@ -846,9 +796,69 @@ const Sales = () => {
     }
   };
 
+  // Add these functions to your Sales component
+  // FIXED: handleUpdateInvoice function
+  const handleUpdateInvoice = async (updatedInvoice) => {
+    try {
+      // Remove timestamp fields but keep invoiceNumber for the update
+      const { createdAt, updatedAt, ...updateData } = updatedInvoice;
+
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/sales/update-sale/${updatedInvoice.invoiceNumber}`,
+        updateData
+      );
+
+      if (response.data.success) {
+        // FIX: Update the invoices state with the returned data
+        setInvoices(prev =>
+          prev.map(inv =>
+            inv.invoiceNumber === updatedInvoice.invoiceNumber ? response.data.data : inv
+          )
+        );
+
+        // FIX: Also update the selectedInvoice if it's the one being edited
+        if (selectedInvoice && selectedInvoice.invoiceNumber === updatedInvoice.invoiceNumber) {
+          setSelectedInvoice(response.data.data);
+        }
+
+        toast.success("Invoice updated successfully!");
+        return true;
+      } else {
+        toast.error("Failed to update invoice");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error updating invoice:", error);
+      toast.error(error.response?.data?.message || "Error updating invoice");
+      return false;
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceNumber) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/sales/delete-sale/${invoiceNumber}`
+      );
+
+      setInvoices(prev =>
+        prev.filter(inv => inv.invoiceNumber !== invoiceNumber)
+      );
+      setSelectedInvoice(null);
+      toast.success("Invoice deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      toast.error(error.response?.data?.message || "Error deleting invoice");
+    }
+  };
 
 
-  const InvoiceModal = ({ invoice, onClose, onExport }) => {
+
+  const InvoiceModal = ({ invoice, onClose, onExport, onUpdate, onDelete }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedInvoice, setEditedInvoice] = useState({});
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [errors, setErrors] = useState({});
+
     useEffect(() => {
       document.body.style.overflow = 'hidden';
       return () => {
@@ -856,90 +866,128 @@ const Sales = () => {
       };
     }, []);
 
-    // const handleExportJSON = () => {
-    //   if (!invoice) return;
+    useEffect(() => {
+      if (invoice) {
+        setEditedInvoice({ ...invoice });
+        setErrors({});
+      }
+    }, [invoice]);
 
-    //   const ewayData = {
-    //     version: "1.0.0621",
-    //     billLists: [{
-    //       userGstin: "24AAAFF2996A1ZS",
-    //       supplyType: invoice.ewayBill.supplyType,
-    //       subSupplyType: invoice.ewayBill.subSupplyType,
-    //       subSupplyDesc: "",
-    //       docType: "INV",
-    //       docNo: invoice.invoiceNumber,
-    //       docDate: formatDate(invoice.invoiceDate),
-    //       transType: invoice.ewayBill.transType,
-    //       fromGstin: invoice.ewayBill.fromGstin,
-    //       fromTrdName: invoice.ewayBill.fromTrdName,
-    //       fromAddr1: invoice.ewayBill.fromAddr1,
-    //       fromAddr2: invoice.ewayBill.fromAddr2 || "",
-    //       fromPlace: invoice.ewayBill.fromPlace,
-    //       fromPincode: parseInt(invoice.ewayBill.fromPincode),
-    //       fromStateCode: invoice.ewayBill.fromStateCode,
-    //       actualFromStateCode: invoice.ewayBill.actualFromStateCode,
-    //       toGstin: invoice.ewayBill.toGstin,
-    //       toTrdName: invoice.ewayBill.toTrdName,
-    //       toAddr1: invoice.ewayBill.toAddr1,
-    //       toAddr2: invoice.ewayBill.toAddr2 || "",
-    //       toPlace: invoice.ewayBill.toPlace,
-    //       toPincode: parseInt(invoice.ewayBill.toPincode),
-    //       toStateCode: invoice.ewayBill.toStateCode,
-    //       actualToStateCode: invoice.ewayBill.actualToStateCode,
-    //       totalValue: invoice.subtotal,
-    //       cgstValue: invoice.cgst || 0,
-    //       sgstValue: invoice.sgst || 0,
-    //       igstValue: invoice.igst || 0,
-    //       cessValue: 0,
-    //       TotNonAdvolVal: 0,
-    //       OthValue: (invoice.packetForwarding || 0) +
-    //         (invoice.freight || 0) +
-    //         (invoice.inspection || 0) +
-    //         (invoice.tcs || 0), // Added TCS
-    //       totInvValue: invoice.total,
-    //       transMode: invoice.ewayBill.transMode || 1,
-    //       transDistance: invoice.ewayBill.transDistance,
-    //       transporterName: invoice.transporter || "",
-    //       transporterId: "",
-    //       transDocNo: invoice.lrNumber || "",
-    //       transDocDate: invoice.lrDate ? formatDate(invoice.lrDate) : "",
-    //       vehicleNo: invoice.vehicleNumber || "",
-    //       vehicleType: "R",
-    //       mainHsnCode: invoice.ewayBill.mainHsnCode,
-    //       itemList: invoice.ewayBill.itemList.map(item => ({
-    //         itemNo: item.itemNo,
-    //         productName: item.productName,
-    //         productDesc: item.productDesc || "",
-    //         hsnCode: item.hsnCode,
-    //         quantity: item.quantity,
-    //         qtyUnit: item.qtyUnit,
-    //         taxableAmount: item.taxableAmount,
-    //         sgstRate: item.sgstRate,
-    //         cgstRate: item.cgstRate,
-    //         igstRate: item.igstRate,
-    //         cessRate: 0,
-    //         cessNonAdvol: 0
-    //       }))
-    //     }]
-    //   };
+    // Validation function - only validate editable fields
+    const validateForm = (values) => {
+      const newErrors = {};
 
-    //   // Create and trigger download
-    //   const blob = new Blob([JSON.stringify(ewayData, null, 2)], { type: 'application/json' });
-    //   const url = URL.createObjectURL(blob);
-    //   const a = document.createElement('a');
-    //   a.href = url;
-    //   a.download = `eWayBill_${invoice.invoiceNumber}.json`;
-    //   document.body.appendChild(a);
-    //   a.click();
-    //   document.body.removeChild(a);
-    //   URL.revokeObjectURL(url);
-    // };
+      // Validate transport details
+      if (!values.lrNumber) newErrors.lrNumber = "LR Number is required";
+      if (!values.lrDate) newErrors.lrDate = "LR Date is required";
+      if (!values.vehicleNumber) newErrors.vehicleNumber = "Vehicle Number is required";
+      if (!values.transporter) newErrors.transporter = "Transporter is required";
+      if (!values.transportMobile) {
+        newErrors.transportMobile = "Transporter Mobile is required";
+      } else if (!/^[6-9]\d{9}$/.test(values.transportMobile)) {
+        newErrors.transportMobile = "Please enter a valid 10-digit mobile number";
+      }
+      // Validate tax slab
+      if (!values.taxSlab) newErrors.taxSlab = "Tax slab is required";
 
+      return newErrors;
+    };
 
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
 
-    // Helper function to format date as DD/MM/YYYY
+      // Convert numeric fields to numbers
+      let processedValue = value;
+      if (name === "taxSlab" || name === "tcsPercent") {
+        processedValue = value === "" ? "" : Number(value);
+      }
 
+      // Update the invoice data
+      const updatedInvoice = { ...editedInvoice, [name]: processedValue };
+      setEditedInvoice(updatedInvoice);
 
+      // Recalculate totals if tax-related fields change
+      if (name === "taxSlab" || name === "tcsPercent") {
+        const newTotals = recalculateTotals(updatedInvoice);
+        setEditedInvoice(prev => ({
+          ...prev,
+          ...newTotals
+        }));
+      }
+
+      // Validate the field in real-time
+      const fieldErrors = validateForm(updatedInvoice);
+      setErrors(prev => ({ ...prev, [name]: fieldErrors[name] }));
+    };
+
+    const handleCheckboxChange = (e) => {
+      const { name, checked } = e.target;
+      setEditedInvoice(prev => ({
+        ...prev,
+        [name]: checked,
+        terms: checked ? TERMS_CONDITIONS : ""
+      }));
+    };
+
+    // Add this function inside your InvoiceModal component
+    // FIXED: recalculateTotals function in InvoiceModal
+    // FIXED: recalculateTotals function in InvoiceModal
+    const recalculateTotals = (invoiceData) => {
+      const items = invoiceData.items || [];
+      const receiverGST = invoiceData.receiver?.gstin || "";
+      const taxSlab = invoiceData.taxSlab || 18;
+      const tcsPercent = invoiceData.tcsPercent || 0;
+
+      const subtotal = items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0);
+
+      // FIX: Properly check if GSTIN starts with "24" for intra-state
+      const isIntraState = receiverGST && receiverGST.startsWith("24");
+
+      // Calculate GST
+      const taxRate = taxSlab;
+      const cgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
+      const sgst = isIntraState ? +(subtotal * (taxRate / 2 / 100)).toFixed(2) : 0;
+      const igst = !isIntraState ? +(subtotal * (taxRate / 100)).toFixed(2) : 0;
+
+      // Calculate total before TCS
+      const totalBeforeTCS = +(subtotal + cgst + sgst + igst).toFixed(2);
+
+      // Calculate TCS
+      const tcs = tcsPercent ? +(totalBeforeTCS * tcsPercent / 100).toFixed(2) : 0;
+
+      // Final total
+      const total = +(totalBeforeTCS + tcs).toFixed(2);
+
+      return {
+        subtotal,
+        cgst,
+        sgst,
+        igst,
+        tcs,
+        total,
+        isIntraState, // Make sure to return this flag
+        taxSlab: taxRate // Also return taxSlab for consistency
+      };
+    };
+
+    const handleSave = async () => {
+      const formErrors = validateForm(editedInvoice);
+      if (Object.keys(formErrors).length > 0) {
+        setErrors(formErrors);
+        toast.error("Please fix the errors before saving");
+        return;
+      }
+
+      try {
+        const success = await onUpdate(editedInvoice);
+        if (success) {
+          setIsEditing(false);
+          setErrors({});
+        }
+      } catch (error) {
+        console.error("Error updating invoice:", error);
+      }
+    };
 
     const handleExportJSON = () => {
       if (!invoice) return;
@@ -958,7 +1006,6 @@ const Sales = () => {
       URL.revokeObjectURL(url);
     };
 
-
     const formatDate = (dateString) => {
       if (!dateString) return "";
       const [year, month, day] = dateString.split('-');
@@ -973,14 +1020,8 @@ const Sales = () => {
       sgst: invoice.sgst || 0,
       igst: invoice.igst || 0,
       total: invoice.total || 0,
-      packetForwarding: invoice.packetForwardingPercent ?
-        (invoice.subtotal * invoice.packetForwardingPercent) / 100 : 0,
-      freight: invoice.freightPercent ?
-        (invoice.subtotal * invoice.freightPercent) / 100 : 0,
-      inspection: invoice.inspectionPercent ?
-        (invoice.subtotal * invoice.inspectionPercent) / 100 : 0,
-      tcs: invoice.tcsPercent ? // Added TCS
-        (invoice.subtotal * invoice.tcsPercent) / 100 : 0
+      tcs: invoice.tcsPercent ?
+        ((invoice.subtotal + (invoice.cgst || 0) + (invoice.sgst || 0) + (invoice.igst || 0)) * invoice.tcsPercent / 100) : 0
     };
 
     const isIntraState = invoice.receiver.gstin?.startsWith("24");
@@ -989,7 +1030,9 @@ const Sales = () => {
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Tax Invoice: {invoice.invoiceNumber}</div>
+            <div className="modal-title">
+              {isEditing ? "Edit Invoice" : `Tax Invoice: ${invoice.invoiceNumber}`}
+            </div>
             <button className="modal-close" onClick={onClose}>
               &times;
             </button>
@@ -1003,8 +1046,21 @@ const Sales = () => {
                 <span className="detail-value">{invoice.invoiceNumber}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Date:</span>
-                <span className="detail-value">{invoice.invoiceDate}</span>
+                <span className="detail-label">Invoice Date:</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="date"
+                      value={editedInvoice.invoiceDate || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="invoiceDate"
+                      className={`edit-input ${errors.invoiceDate ? 'error' : ''}`}
+                    />
+                    {errors.invoiceDate && <div className="error-message">{errors.invoiceDate}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.invoiceDate}</span>
+                )}
               </div>
               {invoice.workOrderNumber && (
                 <div className="detail-row">
@@ -1017,18 +1073,47 @@ const Sales = () => {
               {invoice.poNumber && (
                 <div className="detail-row">
                   <span className="detail-label">PO Number:</span>
-                  <span className="detail-value">{invoice.poNumber}</span>
+                  {isEditing ? (
+                    <div className="edit-field-container">
+                      <input
+                        type="text"
+                        value={editedInvoice.poNumber || ''}
+                        onChange={(e) => handleInputChange(e)}
+                        name="poNumber"
+                        className="edit-input"
+                      />
+                    </div>
+                  ) : (
+                    <span className="detail-value">{invoice.poNumber}</span>
+                  )}
                 </div>
               )}
+
               {invoice.poDate && (
                 <div className="detail-row">
                   <span className="detail-label">PO Date:</span>
-                  <span className="detail-value">{invoice.poDate}</span>
+                  {isEditing ? (
+                    <div className="edit-field-container">
+                      <input
+                        type="date"
+                        value={editedInvoice.poDate || ''}
+                        onChange={(e) => handleInputChange(e)}
+                        name="poDate"
+                        className="edit-input"
+                      />
+                    </div>
+                  ) : (
+                    <span className="detail-value">{invoice.poDate}</span>
+                  )}
                 </div>
               )}
 
               {/* Receiver Details */}
               <div className="section-header">Receiver Details (Billed To)</div>
+              <div className="detail-row">
+                <span className="detail-label">Company Name:</span>
+                <span className="detail-value">{invoice.receiver.companyName}</span>
+              </div>
               <div className="detail-row">
                 <span className="detail-label">Name:</span>
                 <span className="detail-value">{invoice.receiver.name}</span>
@@ -1094,7 +1179,7 @@ const Sales = () => {
               </div>
 
               {/* Items Section */}
-              <div className="section-header">Items</div>
+              <div className="section-header">Products</div>
               <div className="items-grid">
                 {invoice.items.map((item, index) => (
                   <div key={index} className="item-card">
@@ -1111,37 +1196,115 @@ const Sales = () => {
                 ))}
               </div>
 
-              {/* Transport Details */}
+              {/* Transport Details - EDITABLE FIELDS */}
               <div className="section-header">Transport Details</div>
               <div className="detail-row">
                 <span className="detail-label">LR Number:</span>
-                <span className="detail-value">{invoice.lrNumber || 'N/A'}</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      value={editedInvoice.lrNumber || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="lrNumber"
+                      className={`edit-input ${errors.lrNumber ? 'error' : ''}`}
+                    />
+                    {errors.lrNumber && <div className="error-message">{errors.lrNumber}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.lrNumber || 'N/A'}</span>
+                )}
               </div>
+
               <div className="detail-row">
                 <span className="detail-label">LR Date:</span>
-                <span className="detail-value">{invoice.lrDate || 'N/A'}</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="date"
+                      value={editedInvoice.lrDate || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="lrDate"
+                      className={`edit-input ${errors.lrDate ? 'error' : ''}`}
+                    />
+                    {errors.lrDate && <div className="error-message">{errors.lrDate}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.lrDate || 'N/A'}</span>
+                )}
               </div>
-              {/* New Vehicle Number Field */}
-              {invoice.vehicleNumber && (
-                <div className="detail-row">
-                  <span className="detail-label">Vehicle Number:</span>
-                  <span className="detail-value">{invoice.vehicleNumber}</span>
-                </div>
-              )}
+
+              <div className="detail-row">
+                <span className="detail-label">Vehicle Number:</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      value={editedInvoice.vehicleNumber || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="vehicleNumber"
+                      className={`edit-input ${errors.vehicleNumber ? 'error' : ''}`}
+                    />
+                    {errors.vehicleNumber && <div className="error-message">{errors.vehicleNumber}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.vehicleNumber || 'N/A'}</span>
+                )}
+              </div>
+
               <div className="detail-row">
                 <span className="detail-label">Transporter:</span>
-                <span className="detail-value">{invoice.transporter || 'N/A'}</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      value={editedInvoice.transporter || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="transporter"
+                      className={`edit-input ${errors.transporter ? 'error' : ''}`}
+                    />
+                    {errors.transporter && <div className="error-message">{errors.transporter}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.transporter || 'N/A'}</span>
+                )}
               </div>
+
               <div className="detail-row">
                 <span className="detail-label">Mobile:</span>
-                <span className="detail-value">{invoice.transportMobile || 'N/A'}</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      value={editedInvoice.transportMobile || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="transportMobile"
+                      className={`edit-input ${errors.transportMobile ? 'error' : ''}`}
+                    />
+                    {errors.transportMobile && <div className="error-message">{errors.transportMobile}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.transportMobile || 'N/A'}</span>
+                )}
               </div>
 
               {invoice.extraNote && (
                 <>
                   <div className="section-header">Additional Notes</div>
                   <div className="detail-row">
-                    <span className="detail-value">{invoice.extraNote}</span>
+                    {isEditing ? (
+                      <div className="edit-field-container">
+                        <textarea
+                          value={editedInvoice.extraNote || ''}
+                          onChange={(e) => handleInputChange(e)}
+                          name="extraNote"
+                          rows="3"
+                          className="edit-textarea"
+                        />
+                      </div>
+                    ) : (
+                      <span className="detail-value">{invoice.extraNote}</span>
+                    )}
                   </div>
                 </>
               )}
@@ -1173,68 +1336,141 @@ const Sales = () => {
                 </>
               )}
 
+              {/* Tax Information - EDITABLE FIELD */}
+              {/* Tax Information - EDITABLE FIELD */}
+              <div className="section-header">Tax Information</div>
+              <div className="detail-row">
+                <span className="detail-label">Tax Slab:</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <select
+                      value={editedInvoice.taxSlab || ''}
+                      onChange={(e) => handleInputChange(e)}
+                      name="taxSlab"
+                      className={`edit-input ${errors.taxSlab ? 'error' : ''}`}
+                    >
+                      <option value="">Select Tax Slab</option>
+                      {TAX_SLABS.map((slab) => (
+                        <option key={slab.value} value={slab.value}>
+                          {slab.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.taxSlab && <div className="error-message">{errors.taxSlab}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.taxSlab}%</span>
+                )}
+              </div>
+
+              {/* TCS Percentage - EDITABLE FIELD */}
+              <div className="detail-row">
+                <span className="detail-label">TCS %:</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="number"
+                      value={editedInvoice.tcsPercent || 0}
+                      onChange={(e) => handleInputChange(e)}
+                      name="tcsPercent"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      className={`edit-input ${errors.tcsPercent ? 'error' : ''}`}
+                    />
+                    {errors.tcsPercent && <div className="error-message">{errors.tcsPercent}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.tcsPercent || 0}%</span>
+                )}
+              </div>
+
+              {/* Terms & Conditions - EDITABLE FIELD */}
+              <div className="detail-row">
+                <span className="detail-label">Include Terms:</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={editedInvoice.includeTerms || false}
+                        onChange={handleCheckboxChange}
+                        name="includeTerms"
+                      />
+                      Include Standard Terms & Conditions
+                    </label>
+                  </div>
+                ) : (
+                  <span className="detail-value">{invoice.includeTerms ? 'Yes' : 'No'}</span>
+                )}
+              </div>
+
               {/* Totals Section */}
               <div className="section-header">Invoice Summary</div>
+              {/* Totals Section */}
+              {/* FIXED: Totals Section in InvoiceModal */}
               <div className="totals-section">
                 <div className="total-row">
                   <span>Subtotal:</span>
-                  <span>₹{totals.subtotal.toFixed(2)}</span>
+                  <span>₹{(isEditing ? editedInvoice.subtotal : invoice.subtotal || 0).toFixed(2)}</span>
                 </div>
 
-                {/* Additional Charges - Only show if > 0 */}
-                {totals.packetForwarding > 0 && (
-                  <div className="total-row">
-                    <span>Packet Forwarding ({invoice.packetForwardingPercent}%):</span>
-                    <span>₹{totals.packetForwarding.toFixed(2)}</span>
-                  </div>
+                {/* In edit mode, use the calculated values from editedInvoice */}
+                {isEditing ? (
+                  <>
+                    {editedInvoice.cgst > 0 && (
+                      <div className="total-row">
+                        <span>CGST ({editedInvoice.taxSlab / 2}%):</span>
+                        <span>₹{(editedInvoice.cgst || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {editedInvoice.sgst > 0 && (
+                      <div className="total-row">
+                        <span>SGST ({editedInvoice.taxSlab / 2}%):</span>
+                        <span>₹{(editedInvoice.sgst || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {editedInvoice.igst > 0 && (
+                      <div className="total-row">
+                        <span>IGST ({editedInvoice.taxSlab}%):</span>
+                        <span>₹{(editedInvoice.igst || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* In view mode, use the values from the original invoice */
+                  <>
+                    {invoice.cgst > 0 && (
+                      <div className="total-row">
+                        <span>CGST ({invoice.taxSlab / 2}%):</span>
+                        <span>₹{(invoice.cgst || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {invoice.sgst > 0 && (
+                      <div className="total-row">
+                        <span>SGST ({invoice.taxSlab / 2}%):</span>
+                        <span>₹{(invoice.sgst || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {invoice.igst > 0 && (
+                      <div className="total-row">
+                        <span>IGST ({invoice.taxSlab}%):</span>
+                        <span>₹{(invoice.igst || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
-                {totals.freight > 0 && (
+
+                {(isEditing ? editedInvoice.tcs : invoice.tcs || 0) > 0 && (
                   <div className="total-row">
-                    <span>Freight ({invoice.freightPercent}%):</span>
-                    <span>₹{totals.freight.toFixed(2)}</span>
-                  </div>
-                )}
-                {totals.inspection > 0 && (
-                  <div className="total-row">
-                    <span>Inspection ({invoice.inspectionPercent}%):</span>
-                    <span>₹{totals.inspection.toFixed(2)}</span>
-                  </div>
-                )}
-                {totals.tcs > 0 && ( // Added TCS
-                  <div className="total-row">
-                    <span>TCS ({invoice.tcsPercent}%):</span>
-                    <span>₹{totals.tcs.toFixed(2)}</span>
+                    <span>TCS ({isEditing ? editedInvoice.tcsPercent : invoice.tcsPercent}%):</span>
+                    <span>₹{(isEditing ? editedInvoice.tcs : invoice.tcs || 0).toFixed(2)}</span>
                   </div>
                 )}
 
-                {/* GST calculations */}
-                {isIntraState ? (
-                  <>
-                    <div className="total-row">
-                      <span>CGST ({invoice.taxSlab / 2}%):</span>
-                      <span>₹{totals.cgst.toFixed(2)}</span>
-                    </div>
-                    <div className="total-row">
-                      <span>SGST ({invoice.taxSlab / 2}%):</span>
-                      <span>₹{totals.sgst.toFixed(2)}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="total-row">
-                    <span>IGST ({invoice.taxSlab}%):</span>
-                    <span>₹{totals.igst.toFixed(2)}</span>
-                  </div>
-                )}
-                {/* Commented out other charges as requested */}
-                {/* {invoice.otherCharges > 0 && (
-                  <div className="total-row">
-                    <span>Other Charges:</span>
-                    <span>₹{invoice.otherCharges.toFixed(2)}</span>
-                  </div>
-                )} */}
                 <div className="total-row grand-total">
                   <span>Total:</span>
-                  <span>₹{totals.total.toFixed(2)}</span>
+                  <span>₹{(isEditing ? editedInvoice.total : invoice.total || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -1260,8 +1496,47 @@ const Sales = () => {
             >
               <FaFileCode /> Export JSON
             </button>
+            <button
+              className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+              onClick={isEditing ? handleSave : () => setIsEditing(true)}
+            >
+              {isEditing ? "Save Changes" : "Update"}
+            </button>
+            <button
+              className="delete-btn"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <FaTrash /> Delete
+            </button>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="confirm-dialog-overlay">
+            <div className="confirm-dialog">
+              <h3>Confirm Deletion</h3>
+              <p>Are you sure you want to delete invoice {invoice.invoiceNumber}? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button
+                  className="confirm-cancel"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-delete"
+                  onClick={() => {
+                    onDelete(invoice.invoiceNumber);
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1309,14 +1584,9 @@ const Sales = () => {
 
                 const totals = calculateTotals(
                   values.items,
-                  0,
-                  // values.otherCharges, // Commented out
-                  values.receiver.gstin,
+                  values.receiver.gstin || "", // ✅ Correct parameter for receiverGST
                   {
-                    packetForwardingPercent: values.packetForwardingPercent,
-                    freightPercent: values.freightPercent,
-                    inspectionPercent: values.inspectionPercent,
-                    tcsPercent: values.tcsPercent // Added TCS
+                    tcsPercent: values.tcsPercent // ✅ Only TCS remains
                   },
                   values.taxSlab
                 );
@@ -1477,7 +1747,7 @@ const Sales = () => {
                       </div>
                     </div>
 
-                    <h3>Item Details</h3>
+                    <h3>Products Details</h3>
                     <FieldArray name="items">
                       {({ push, remove }) => (
                         <div className="form-items">
@@ -1490,8 +1760,9 @@ const Sales = () => {
                                 <Field
                                   name={`items.${index}.quantity`}
                                   type="number"
+                                  step="0.01" // Allow decimal values
                                   placeholder="Qty"
-                                  max={item._remainingQty} // Add max attribute
+                                  max={item._remainingQty}
                                   onInput={(e) => {
                                     if (item._remainingQty !== undefined &&
                                       e.target.value > item._remainingQty) {
@@ -1578,7 +1849,7 @@ const Sales = () => {
 
                     <h3>Additional Charges</h3>
                     <div className="form-group-row">
-                      <div className="field-wrapper">
+                      {/* <div className="field-wrapper">
                         <label>Packet Forwarding %</label>
                         <Field
                           name="packetForwardingPercent"
@@ -1631,7 +1902,7 @@ const Sales = () => {
                             }
                           }}
                         />
-                      </div>
+                      </div> */}
                       <div className="field-wrapper">
                         <label>TCS %</label> {/* Added TCS */}
                         <Field
@@ -1660,11 +1931,11 @@ const Sales = () => {
                     </div>
 
                     {/* Add this after the Consignee section and before Transport Details */}
-                    <h3>e-Way Bill Details</h3>
-                    <div className="form-group-row">
+                    {/* <h3>e-Way Bill Details</h3>  */}
+                    {/* <div className="form-group-row">
                       <div className="field-wrapper">
                         <label>Supply Type</label>
-                        <Field as="select" name="ewayBill.supplyType">
+                        <Field as="select" name="ewayBill.supplyType" type= "hidden">
                           {SUPPLY_TYPES.map((type) => (
                             <option key={type.value} value={type.value}>
                               {type.label}
@@ -1694,24 +1965,10 @@ const Sales = () => {
                           ))}
                         </Field>
                       </div>
-                    </div>
+                    </div> */}
 
                     <div className="totals">
                       <p>Subtotal: ₹{totals.subtotal.toFixed(2)}</p>
-
-                      {/* Only show charges that have values */}
-                      {values.packetForwardingPercent > 0 && (
-                        <p>Packet Forwarding: {values.packetForwardingPercent}% - ₹{totals.packetForwarding.toFixed(2)}</p>
-                      )}
-                      {values.freightPercent > 0 && (
-                        <p>Freight: {values.freightPercent}% - ₹{totals.freight.toFixed(2)}</p>
-                      )}
-                      {values.inspectionPercent > 0 && (
-                        <p>Inspection: {values.inspectionPercent}% - ₹{totals.inspection.toFixed(2)}</p>
-                      )}
-                      {values.tcsPercent > 0 && ( // Added TCS
-                        <p>TCS: {values.tcsPercent}% - ₹{totals.tcs.toFixed(2)}</p>
-                      )}
 
                       {/* GST calculations */}
                       {gstType === "intra" ? (
@@ -1722,6 +1979,12 @@ const Sales = () => {
                       ) : (
                         <p>IGST ({values.taxSlab}%): ₹{totals.igst.toFixed(2)}</p>
                       )}
+
+                      {/* Only show TCS if it has a value */}
+                      {values.tcsPercent > 0 && (
+                        <p>TCS: {values.tcsPercent}% - ₹{totals.tcs.toFixed(2)}</p>
+                      )}
+
                       <p>Total: ₹{totals.total.toFixed(2)}</p>
                     </div>
 
@@ -1817,6 +2080,8 @@ const Sales = () => {
             invoice={selectedInvoice}
             onClose={() => setSelectedInvoice(null)}
             onExport={handleExportPDF}
+            onUpdate={handleUpdateInvoice}
+            onDelete={handleDeleteInvoice}
           />
         )}
       </div>

@@ -3,7 +3,7 @@ import { Formik, Form, Field, FieldArray } from "formik";
 import * as Yup from "yup";
 import html2pdf from "html2pdf.js";
 import { toast, ToastContainer } from "react-toastify";
-import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash, FaEdit, FaSave } from "react-icons/fa";
 import Navbar from "../../Components/Sidebar/Navbar";
 import WorkOrderPrint from "./WorkOrderPrint";
 import "react-toastify/dist/ReactToastify.css";
@@ -240,7 +240,9 @@ const WorkOrder = () => {
         items: Yup.array().of(
             Yup.object({
                 name: Yup.string().required("Item name required"),
-                quantity: Yup.number().required("Quantity required").moreThan(0),
+                quantity: Yup.number()
+                    .required("Quantity required")
+                    .moreThan(0, "Quantity must be greater than 0"),
                 unitPrice: Yup.number().required("Unit price required").moreThan(0),
                 units: Yup.string().required("Unit selection required")
             })
@@ -258,13 +260,15 @@ const WorkOrder = () => {
 
     const handleItemSelect = (selectedOption, index, setFieldValue) => {
         if (selectedOption) {
-            setFieldValue(`items.${index}.name`, selectedOption.value);
+            // Store BOM ID internally but don't show it to user
+            setFieldValue(`items.${index}.bomId`, selectedOption.bomData.bomId);
+            setFieldValue(`items.${index}.name`, selectedOption.bomData.productName);
             setFieldValue(`items.${index}.description`, selectedOption.bomData.description);
             setFieldValue(`items.${index}.hsn`, selectedOption.bomData.hsnCode);
 
             // Show BOM requirements toast
             toast.info(
-                `To make 1 ${selectedOption.value} you need: ${selectedOption.bomData.items.map(i =>
+                `To make 1 ${selectedOption.bomData.productName} you need: ${selectedOption.bomData.items.map(i =>
                     `${i.requiredQty} ${i.itemName}`
                 ).join(", ")}`,
                 {
@@ -355,25 +359,25 @@ const WorkOrder = () => {
     };
 
     const handleExportPDF = () => {
-  if (!selectedWorkOrder) return toast.warn("Select a work order to export");
-  
-  const element = document.getElementById("workorder-pdf");
-  
-  html2pdf()
-    .from(element)
-    .set({
-      margin: [25, 10, 10, 10], // top=30mm, right=10mm, bottom=10mm, left=10mm
-      filename: `${selectedWorkOrder.workOrderNumber}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { 
-        scale: 2,
-        useCORS: true,
-        logging: false
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    })
-    .save();
-};
+        if (!selectedWorkOrder) return toast.warn("Select a work order to export");
+
+        const element = document.getElementById("workorder-pdf");
+
+        html2pdf()
+            .from(element)
+            .set({
+                margin: [35, 10, 10, 10], // top=30mm, right=10mm, bottom=10mm, left=10mm
+                filename: `${selectedWorkOrder.workOrderNumber}.pdf`,
+                image: { type: "jpeg", quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                },
+                jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+            })
+            .save();
+    };
 
     const handleExportExcel = () => {
         if (workOrders.length === 0) {
@@ -397,7 +401,88 @@ const WorkOrder = () => {
         toast.success("Exported all work orders to Excel");
     };
 
-    const WorkOrderModal = ({ workOrder, onClose, onExport }) => {
+    // Add these functions to your WorkOrder component
+    const handleUpdateWorkOrder = async (updatedWorkOrder) => {
+        try {
+            // Check if all items have BOM IDs
+            const missingBomItems = updatedWorkOrder.items.filter(item => !item.bomId);
+            if (missingBomItems.length > 0) {
+                toast.error("Some items are missing product selection. Please select products for all items.");
+                throw new Error("Missing BOM IDs");
+            }
+
+            // Check inventory before updating
+            for (const item of updatedWorkOrder.items) {
+                const inventoryCheck = await checkInventory(item.name, item.quantity);
+                if (!inventoryCheck.canProduce) {
+                    toast.error(`Cannot update: ${inventoryCheck.message}`, {
+                        autoClose: false,
+                        closeOnClick: false,
+                        draggable: false,
+                        closeButton: true
+                    });
+                    throw new Error("Insufficient inventory");
+                }
+            }
+
+            // Remove timestamp fields and other non-updatable fields
+            const { createdAt, updatedAt, workOrderNumber, ...updateData } = updatedWorkOrder;
+
+            updateData.workOrderDate = updatedWorkOrder.workOrderDate;
+
+            const response = await axios.put(
+                `${import.meta.env.VITE_API_URL}/workorder/update-workorder/${updatedWorkOrder.workOrderNumber}`,
+                updateData
+            );
+
+            const updatedWO = response.data.data;
+
+            // Update the work orders list
+            setWorkOrders(prev =>
+                prev.map(wo =>
+                    wo.workOrderNumber === updatedWorkOrder.workOrderNumber ? updatedWO : wo
+                )
+            );
+
+            // Also update the selected work order if it's the one being edited
+            if (selectedWorkOrder && selectedWorkOrder.workOrderNumber === updatedWorkOrder.workOrderNumber) {
+                setSelectedWorkOrder(updatedWO);
+            }
+
+            toast.success("Work order updated successfully!");
+            return updatedWO;
+        } catch (error) {
+            console.error("Error updating work order:", error);
+            if (error.message !== "Insufficient inventory" && error.message !== "Missing BOM IDs") {
+                toast.error(error.response?.data?.message || "Error updating work order");
+            }
+            throw error;
+        }
+    };
+
+    const handleDeleteWorkOrder = async (workOrderNumber) => {
+        try {
+            await axios.delete(
+                `${import.meta.env.VITE_API_URL}/workorder/delete-workorder/${workOrderNumber}`
+            );
+
+            setWorkOrders(prev =>
+                prev.filter(wo => wo.workOrderNumber !== workOrderNumber)
+            );
+            setSelectedWorkOrder(null);
+            toast.success("Work order deleted successfully!");
+        } catch (error) {
+            console.error("Error deleting work order:", error);
+            toast.error(error.response?.data?.message || "Error deleting work order");
+        }
+    };
+
+    const WorkOrderModal = ({ workOrder, customers, bomProducts, onClose, onExport, onUpdate, onDelete }) => {
+        const [isEditing, setIsEditing] = useState(false);
+        const [editedWorkOrder, setEditedWorkOrder] = useState({});
+        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+        const [errors, setErrors] = useState({});
+
         useEffect(() => {
             document.body.style.overflow = 'hidden';
             return () => {
@@ -405,9 +490,154 @@ const WorkOrder = () => {
             };
         }, []);
 
+        useEffect(() => {
+            if (workOrder) {
+                // Ensure each item has a bomId
+                const itemsWithBomId = workOrder.items.map(item => ({
+                    ...item,
+                    bomId: item.bomId || findBomIdByName(item.name) // Try to find BOM ID if missing
+                }));
+
+                setEditedWorkOrder({
+                    ...workOrder,
+                    items: itemsWithBomId
+                });
+                setErrors({});
+            }
+        }, [workOrder]);
+
+        // Helper function to find BOM ID by product name
+        const findBomIdByName = (productName) => {
+            const bom = bomProducts.find(b => b.productName === productName);
+            return bom ? bom.bomId : null;
+        };
+
+        // Validation function - only validate quantity and unitPrice
+        const validateForm = (values) => {
+            const newErrors = {};
+
+            // Validate items array
+            if (values.items && Array.isArray(values.items)) {
+                values.items.forEach((item, index) => {
+                    if (!item.quantity || item.quantity <= 0) {
+                        newErrors[`items.${index}.quantity`] = "Quantity must be greater than 0";
+                    }
+                    if (!item.unitPrice || item.unitPrice <= 0) {
+                        newErrors[`items.${index}.unitPrice`] = "Unit price must be greater than 0";
+                    }
+                    if (!item.bomId) {
+                        newErrors[`items.${index}.bomId`] = "Product selection is required";
+                    }
+                });
+            }
+
+            return newErrors;
+        };
+
+        // Add this handler function inside WorkOrderModal
+        const handleCompanySelect = (selectedOption) => {
+            if (selectedOption) {
+                const selectedCustomer = selectedOption.customerData;
+                setEditedWorkOrder(prev => ({
+                    ...prev,
+                    receiver: {
+                        ...prev.receiver,
+                        companyName: selectedCustomer.companyName,
+                        name: selectedCustomer.customerName,
+                        gstin: selectedCustomer.gstNumber,
+                        address: selectedCustomer.address,
+                        city: selectedCustomer.city,
+                        pincode: selectedCustomer.pincode,
+                        contact: selectedCustomer.contactNumber,
+                        email: selectedCustomer.email
+                    }
+                }));
+            }
+        };
+
+        // Add this handler function for product selection
+        const handleItemSelect = (selectedOption, index) => {
+            if (selectedOption) {
+                const selectedBOM = selectedOption.bomData;
+                const updatedItems = [...editedWorkOrder.items];
+
+                updatedItems[index] = {
+                    ...updatedItems[index],
+                    bomId: selectedBOM.bomId, // Store BOM ID internally
+                    name: selectedBOM.productName, // Show product name
+                    description: selectedBOM.description,
+                    hsn: selectedBOM.hsnCode
+                };
+
+                setEditedWorkOrder(prev => ({
+                    ...prev,
+                    items: updatedItems
+                }));
+
+                // Clear any BOM ID error for this item
+                setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors[`items.${index}.bomId`];
+                    return newErrors;
+                });
+
+                // Show BOM requirements toast
+                toast.info(
+                    `To make 1 ${selectedBOM.productName} you need: ${selectedBOM.items.map(i =>
+                        `${i.requiredQty} ${i.itemName}`
+                    ).join(", ")}`,
+                    { autoClose: false, closeOnClick: false }
+                );
+            }
+        };
+
+        const handleInputChange = (e, index, field) => {
+            const { value } = e.target;
+            const newItems = [...editedWorkOrder.items];
+
+            newItems[index] = {
+                ...newItems[index],
+                [field]: field === 'quantity' || field === 'unitPrice' ? Number(value) : value
+            };
+
+            setEditedWorkOrder(prev => ({ ...prev, items: newItems }));
+
+            // Validate the field in real-time
+            const fieldErrors = validateForm({ ...editedWorkOrder, items: newItems });
+            setErrors(prev => ({ ...prev, ...fieldErrors }));
+        };
+
+        const handleSave = async () => {
+            const formErrors = validateForm(editedWorkOrder);
+            if (Object.keys(formErrors).length > 0) {
+                setErrors(formErrors);
+
+                // Show specific error messages
+                Object.entries(formErrors).forEach(([key, error]) => {
+                    if (key.includes('bomId')) {
+                        toast.error(`Product selection is required for item ${parseInt(key.split('.')[1]) + 1}`);
+                    }
+                });
+
+                return;
+            }
+
+            try {
+                await onUpdate(editedWorkOrder);
+                setIsEditing(false);
+                setErrors({});
+            } catch (error) {
+                console.error("Error updating work order:", error);
+            }
+        };
+
         if (!workOrder) return null;
 
-        const totals = calculateTotals(workOrder.items, 0, workOrder.receiver.gstin);
+        const totals = calculateTotals(
+            editedWorkOrder.items || workOrder.items,
+            0,
+            editedWorkOrder.receiver?.gstin || workOrder.receiver?.gstin
+        );
 
         return (
             <div className="modal-overlay" onClick={onClose}>
@@ -427,7 +657,17 @@ const WorkOrder = () => {
                             </div>
                             <div className="detail-row">
                                 <span className="detail-label">Date:</span>
-                                <span className="detail-value">{workOrder.workOrderDate}</span>
+                                {isEditing ? (
+                                    <input
+                                        type="date"
+                                        name="workOrderDate"
+                                        value={editedWorkOrder.workOrderDate || ''}
+                                        onChange={(e) => setEditedWorkOrder(prev => ({ ...prev, workOrderDate: e.target.value }))}
+                                        className="edit-input"
+                                    />
+                                ) : (
+                                    <span className="detail-value">{workOrder.workOrderDate}</span>
+                                )}
                             </div>
                             {workOrder.poNumber && (
                                 <div className="detail-row">
@@ -448,50 +688,164 @@ const WorkOrder = () => {
                             <div className="section-header">Receiver Details (Billed To)</div>
                             <div className="detail-row">
                                 <span className="detail-label">Company Name:</span>
-                                <span className="detail-value">{workOrder.receiver.companyName || 'N/A'}</span>
+                                {isEditing ? (
+                                    <div className="edit-field-container">
+                                        <Select
+                                            className="react-select-container"
+                                            classNamePrefix="react-select"
+                                            options={customers.map(customer => ({
+                                                value: customer.companyName,
+                                                label: customer.companyName,
+                                                customerData: customer
+                                            }))}
+                                            onChange={handleCompanySelect}
+                                            value={{
+                                                value: editedWorkOrder.receiver?.companyName,
+                                                label: editedWorkOrder.receiver?.companyName
+                                            }}
+                                            placeholder="Select Company"
+                                            isSearchable={true}
+                                            noOptionsMessage={() => "No companies found"}
+                                        />
+                                    </div>
+                                ) : (
+                                    <span className="detail-value">{workOrder.receiver.companyName || 'N/A'}</span>
+                                )}
                             </div>
                             <div className="detail-row">
                                 <span className="detail-label">Name:</span>
-                                <span className="detail-value">{workOrder.receiver.name}</span>
+                                <span className="detail-value">{editedWorkOrder.receiver?.name || workOrder.receiver.name}</span>
                             </div>
                             <div className="detail-row">
                                 <span className="detail-label">GSTIN:</span>
-                                <span className="detail-value">{workOrder.receiver.gstin}</span>
+                                <span className="detail-value">{editedWorkOrder.receiver?.gstin || workOrder.receiver.gstin}</span>
                             </div>
                             <div className="detail-row">
                                 <span className="detail-label">Address:</span>
-                                <span className="detail-value">{workOrder.receiver.address}</span>
+                                <span className="detail-value">{editedWorkOrder.receiver?.address || workOrder.receiver.address}</span>
                             </div>
+
                             <div className="address-details-row">
                                 <div className="detail-row">
                                     <span className="detail-label">City:</span>
-                                    <span className="detail-value">{workOrder.receiver.city || 'N/A'}</span>
+                                    <span className="detail-value">
+                                        {editedWorkOrder.receiver?.city || workOrder.receiver.city || "N/A"}
+                                    </span>
                                 </div>
                                 <div className="detail-row">
                                     <span className="detail-label">Pincode:</span>
-                                    <span className="detail-value">{workOrder.receiver.pincode || 'N/A'}</span>
+                                    <span className="detail-value">
+                                        {editedWorkOrder.receiver?.pincode || workOrder.receiver.pincode || "N/A"}
+                                    </span>
                                 </div>
                             </div>
+
                             <div className="detail-row">
                                 <span className="detail-label">Contact:</span>
-                                <span className="detail-value">{workOrder.receiver.contact}</span>
-                            </div>
-                            <div className="detail-row">
-                                <span className="detail-label">Email:</span>
-                                <span className="detail-value">{workOrder.receiver.email}</span>
+                                <span className="detail-value">
+                                    {editedWorkOrder.receiver?.contact || workOrder.receiver.contact || "N/A"}
+                                </span>
                             </div>
 
-                            <div className="section-header">Items Ordered</div>
+                            <div className="detail-row">
+                                <span className="detail-label">Email:</span>
+                                <span className="detail-value">
+                                    {editedWorkOrder.receiver?.email || workOrder.receiver.email || "N/A"}
+                                </span>
+                            </div>
+
+                            {/* Items Section - Only Quantity and Unit Price are editable */}
+                            <div className="section-header">Products Ordered</div>
                             <div className="items-grid">
-                                {workOrder.items.map((item, index) => (
+                                {(editedWorkOrder.items || workOrder.items).map((item, index) => (
                                     <div key={index} className="item-card">
                                         <div className="item-header">
-                                            <span className="item-name">{item.name}</span>
+                                            {isEditing ? (
+                                                <div className="edit-field-container">
+                                                    <Select
+                                                        className="react-select-container"
+                                                        classNamePrefix="react-select"
+                                                        options={bomProducts
+                                                            .filter(availableBOM =>
+                                                                !editedWorkOrder.items.some((selectedItem, selectedIndex) =>
+                                                                    selectedIndex !== index &&
+                                                                    selectedItem.bomId === availableBOM.bomId
+                                                                )
+                                                            )
+                                                            .map(bom => ({
+                                                                value: bom.bomId, // Store BOM ID
+                                                                label: bom.productName, // Show product name
+                                                                bomData: bom
+                                                            }))
+                                                        }
+                                                        onChange={(selectedOption) => handleItemSelect(selectedOption, index)}
+                                                        value={item.bomId ? {
+                                                            value: item.bomId,
+                                                            label: item.name // Show the product name, not BOM ID
+                                                        } : null}
+                                                        placeholder="Product"
+                                                        isSearchable={true}
+                                                        noOptionsMessage={() => "No products available"}
+                                                    />
+                                                    {errors[`items.${index}.bomId`] && (
+                                                        <div className="error-message">{errors[`items.${index}.bomId`]}</div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="item-name">{item.name}</span>
+                                            )}
                                             <span className="item-hsn">HSN: {item.hsn || 'N/A'}</span>
                                         </div>
+
+                                        <div className="item-description">
+                                            {item.description || 'No description'}
+                                        </div>
+
                                         <div className="item-details">
-                                            <span>Qty: {item.quantity} {item.units}</span>
-                                            <span>Rate: ₹{item.unitPrice}</span>
+                                            {/* Keep quantity and price editing as before */}
+                                            <div className="editable-field">
+                                                <span>Qty: </span>
+                                                {isEditing ? (
+                                                    <div className="edit-field-container">
+                                                        <input
+                                                            type="number"
+                                                            value={item.quantity}
+                                                            onChange={(e) => handleInputChange(e, index, 'quantity')}
+                                                            className={`edit-input ${errors[`items.${index}.quantity`] ? 'error' : ''}`}
+                                                            min="0.01"
+                                                            step="0.01"
+                                                        />
+                                                        {errors[`items.${index}.quantity`] && (
+                                                            <div className="error-message">{errors[`items.${index}.quantity`]}</div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span>{item.quantity}</span>
+                                                )}
+                                                <span> {item.units}</span>
+                                            </div>
+
+                                            <div className="editable-field">
+                                                <span>Rate: ₹</span>
+                                                {isEditing ? (
+                                                    <div className="edit-field-container">
+                                                        <input
+                                                            type="number"
+                                                            value={item.unitPrice}
+                                                            onChange={(e) => handleInputChange(e, index, 'unitPrice')}
+                                                            className={`edit-input ${errors[`items.${index}.unitPrice`] ? 'error' : ''}`}
+                                                            min="0.01"
+                                                            step="0.01"
+                                                        />
+                                                        {errors[`items.${index}.unitPrice`] && (
+                                                            <div className="error-message">{errors[`items.${index}.unitPrice`]}</div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span>{item.unitPrice}</span>
+                                                )}
+                                            </div>
+
                                             <span>Total: ₹{(item.quantity * item.unitPrice).toFixed(2)}</span>
                                         </div>
                                     </div>
@@ -534,8 +888,47 @@ const WorkOrder = () => {
                         <button className="export-btn" onClick={onExport}>
                             <FaFileExport /> Export as PDF
                         </button>
+                        <button
+                            className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+                            onClick={isEditing ? handleSave : () => setIsEditing(true)}
+                        >
+                            {isEditing ? "Save Changes" : "Update"}
+                        </button>
+                        <button
+                            className="delete-btn"
+                            onClick={() => setShowDeleteConfirm(true)}
+                        >
+                            <FaTrash /> Delete
+                        </button>
                     </div>
                 </div>
+
+                {/* Delete Confirmation Dialog */}
+                {showDeleteConfirm && (
+                    <div className="confirm-dialog-overlay">
+                        <div className="confirm-dialog">
+                            <h3>Confirm Deletion</h3>
+                            <p>Are you sure you want to delete {workOrder.workOrderNumber}? This action cannot be undone. This will restore the inventory items to stock.</p>
+                            <div className="confirm-buttons">
+                                <button
+                                    className="confirm-cancel"
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="confirm-delete"
+                                    onClick={() => {
+                                        onDelete(workOrder.workOrderNumber);
+                                        setShowDeleteConfirm(false);
+                                    }}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -571,13 +964,7 @@ const WorkOrder = () => {
 
                 {showForm && (
                     <div className="form-container">
-                        <div className="po-form-header">
-                            <h2>Create Work Order</h2>
-                            <div className="date-container">
-                                <span className="date-label">Date:</span>
-                                <span className="po-date">{initialValues.workOrderDate}</span>
-                            </div>
-                        </div>
+
                         <Formik
                             initialValues={initialValues}
                             validationSchema={validationSchema}
@@ -638,7 +1025,17 @@ const WorkOrder = () => {
                                                 />
                                             </div>
                                         </div> */}
-
+                                        <div className="po-form-header">
+                                            <h2>Create Work Order</h2>
+                                            <div className="date-container">
+                                                <span className="date-label">Date:</span>
+                                                <Field
+                                                    name="workOrderDate"
+                                                    type="date"
+                                                    className="workorder-date-editable"
+                                                />
+                                            </div>
+                                        </div>
                                         {/* Receiver Section */}
                                         <h3>Receiver (Billed To)</h3>
                                         <div className="form-group-row">
@@ -686,7 +1083,7 @@ const WorkOrder = () => {
                                         </div>
 
                                         {/* Items Section */}
-                                        <h3>Item Details</h3>
+                                        <h3>Product Details</h3>
                                         <FieldArray name="items">
                                             {({ push, remove }) => (
                                                 <div className="form-items">
@@ -696,8 +1093,8 @@ const WorkOrder = () => {
                                                                 className="react-select-container"
                                                                 classNamePrefix="react-select"
                                                                 options={bomProducts.map(bom => ({
-                                                                    value: bom.productName,
-                                                                    label: bom.productName,
+                                                                    value: bom.bomId, // Store BOM ID as value (hidden from user)
+                                                                    label: bom.productName, // Show only product name to user
                                                                     bomData: bom
                                                                 }))}
                                                                 onChange={(selectedOption) => handleItemSelect(selectedOption, index, setFieldValue)}
@@ -707,8 +1104,13 @@ const WorkOrder = () => {
                                                             />
                                                             <Field name={`items.${index}.description`} placeholder="Description" readOnly />
                                                             <Field name={`items.${index}.hsn`} placeholder="HSN Code" readOnly />
-                                                            <Field name={`items.${index}.quantity`} type="number" placeholder="Qty" />
-                                                            <Field name={`items.${index}.unitPrice`} type="number" placeholder="Unit Price" />
+                                                            <Field
+                                                                name={`items.${index}.quantity`}
+                                                                type="number"
+                                                                placeholder="Qty"
+                                                                min="0.01"
+                                                                step="0.01"
+                                                            />                                                            <Field name={`items.${index}.unitPrice`} type="number" placeholder="Unit Price" />
                                                             <Select
                                                                 className="react-select-container"
                                                                 classNamePrefix="react-select"
@@ -813,8 +1215,12 @@ const WorkOrder = () => {
                 {selectedWorkOrder && (
                     <WorkOrderModal
                         workOrder={selectedWorkOrder}
+                        customers={customers}
+                        bomProducts={bomProducts}
                         onClose={() => setSelectedWorkOrder(null)}
                         onExport={handleExportPDF}
+                        onUpdate={handleUpdateWorkOrder}
+                        onDelete={handleDeleteWorkOrder}
                     />
                 )}
             </div>

@@ -177,13 +177,22 @@ const Items = () => {
     html2pdf().from(content).set(opt).save();
   };
 
+  // Export All Excel - UPDATED VERSION
   const exportAllAsExcel = () => {
-    if (items.length === 0) {
+    // Use filteredItems if search is active, otherwise use all items
+    const dataToExport = filteredItems.length > 0 && debouncedSearch ? filteredItems : items;
+
+    if (dataToExport.length === 0) {
       toast.warning("No items to export");
       return;
     }
 
-    const data = items.map(item => ({
+    // Generate appropriate filename
+    const filename = filteredItems.length > 0 && debouncedSearch
+      ? "filtered_items.xlsx"
+      : "all_items.xlsx";
+
+    const data = dataToExport.map(item => ({
       "Item Name": item.itemName,
       "Minimum Qty": item.minimumQty,
       "HSN Code": item.hsnCode,
@@ -195,7 +204,7 @@ const Items = () => {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
-    XLSX.writeFile(workbook, "all_items.xlsx");
+    XLSX.writeFile(workbook, filename);
   };
 
   const handleUpdateItem = async (updatedItem) => {
@@ -469,7 +478,7 @@ const Items = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            <div className="action-buttons-group">
               {/* <button className="export-btn" onClick={exportSelectedAsPDF}>
                 <FaFileExport /> Export
               </button> */}

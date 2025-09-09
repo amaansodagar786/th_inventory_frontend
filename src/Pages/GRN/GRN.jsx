@@ -3,7 +3,7 @@ import { Formik, Form, Field, FieldArray } from "formik";
 import * as Yup from "yup";
 import html2pdf from "html2pdf.js";
 import { toast, ToastContainer } from "react-toastify";
-import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash } from "react-icons/fa";
+import { FaPlus, FaFileExport, FaFileExcel, FaSearch, FaTrash, FaEdit, FaSave } from "react-icons/fa";
 import Navbar from "../../Components/Sidebar/Navbar";
 import GRNPrint from "./GRNPrint";
 import "react-toastify/dist/ReactToastify.css";
@@ -11,8 +11,6 @@ import "./GRN.scss";
 import axios from "axios";
 import * as XLSX from 'xlsx';
 import Select from 'react-select';
-
-// const generateGRNNumber = (index) => `GRN2025${String(index + 1).padStart(4, "0")}`; 
 
 const GRN = () => {
   const [grns, setGRNs] = useState(() => {
@@ -27,28 +25,24 @@ const GRN = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  // const [isSearching, setIsSearching] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
   const loaderTimeoutRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-  // Add debounce effect
+
   useEffect(() => {
-    // Clear any pending timeout
     if (loaderTimeoutRef.current) {
       clearTimeout(loaderTimeoutRef.current);
     }
 
     if (searchTerm.trim()) {
-      // Only show loader if search takes more than 300ms
       loaderTimeoutRef.current = setTimeout(() => {
         setShowLoader(true);
       }, 300);
 
       const searchTimeout = setTimeout(() => {
-        // Clear the loader timeout if search completes
         if (loaderTimeoutRef.current) {
           clearTimeout(loaderTimeoutRef.current);
         }
@@ -69,17 +63,15 @@ const GRN = () => {
     }
   }, [searchTerm]);
 
-  // Fetch purchase orders on component mount
   useEffect(() => {
     const fetchPurchaseOrders = async () => {
       setIsLoading(true);
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/po/get-pos`);
-        // Sort POs by date (newest first) and then by PO number (descending)
         const sortedPOs = (response.data.data || []).sort((a, b) => {
           const dateDiff = new Date(b.date) - new Date(a.date);
           if (dateDiff !== 0) return dateDiff;
-          return b.poNumber.localeCompare(a.poNumber); // Secondary sort by PO number
+          return b.poNumber.localeCompare(a.poNumber);
         });
         setPurchaseOrders(sortedPOs);
       } catch (error) {
@@ -92,13 +84,11 @@ const GRN = () => {
     fetchPurchaseOrders();
   }, []);
 
-  // Fetch GRNs with sorting
   useEffect(() => {
     const fetchGRNs = async () => {
       setIsLoading(true);
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/grn/get-grns`);
-        // Sort by date (newest first) and then by GRN number (descending)
         const sortedGRNs = (response.data.data || []).sort((a, b) => {
           const dateDiff = new Date(b.grnDate) - new Date(a.grnDate);
           if (dateDiff !== 0) return dateDiff;
@@ -115,14 +105,14 @@ const GRN = () => {
   }, []);
 
   const initialValues = {
-    // grnNumber: generateGRNNumber(grns.length), 
     grnNumber: "",
-    grnDate: new Date().toISOString().slice(0, 10), // Today's date as default
+    grnDate: new Date().toISOString().slice(0, 10),
     poNumber: "",
     poDate: "",
     lrNumber: "",
     transporter: "",
     vehicleNo: "",
+    companyName: "",
     vendorName: "",
     vendorGST: "",
     vendorAddress: "",
@@ -145,7 +135,8 @@ const GRN = () => {
   const validationSchema = Yup.object({
     grnDate: Yup.string().required("GRN Date is required"),
     poNumber: Yup.string().required("PO Number is required"),
-    vendorName: Yup.string().required("Vendor Name is required"),
+    companyName: Yup.string().required("Company Name is required"),
+    vendorName: Yup.string().required("Contact Person is required"),
     vendorGST: Yup.string().required("Vendor GST is required"),
     vendorAddress: Yup.string().required("Vendor Address is required"),
     vendorContact: Yup.string().required("Vendor Contact is required"),
@@ -163,7 +154,6 @@ const GRN = () => {
               const itemIndex = path.split('.')[1];
               const currentItem = this.parent;
 
-              // If we have _remainingQty, use it for validation
               if (currentItem._remainingQty !== undefined) {
                 return value <= currentItem._remainingQty;
               }
@@ -175,25 +165,20 @@ const GRN = () => {
     )
   });
 
-
-
   const filteredGRNs = useMemo(() => {
     if (!debouncedSearch) return grns;
 
     return grns.filter(grn => {
-      // Check GRN fields
       if (grn.grnNumber?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.poNumber?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.lrNumber?.toLowerCase().includes(debouncedSearch)) return true;
-
-      // Check vendor fields
+      if (grn.companyName?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.vendorName?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.vendorGST?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.vendorAddress?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.vendorContact?.toLowerCase().includes(debouncedSearch)) return true;
       if (grn.vendorEmail?.toLowerCase().includes(debouncedSearch)) return true;
 
-      // Check items
       if (grn.items?.some(item =>
         item.name?.toLowerCase().includes(debouncedSearch) ||
         item.description?.toLowerCase().includes(debouncedSearch) ||
@@ -204,35 +189,28 @@ const GRN = () => {
     });
   }, [debouncedSearch, grns]);
 
-
-
-
   const handlePOSelect = async (e, setFieldValue) => {
     const selectedPONumber = e.target.value;
     if (!selectedPONumber) return;
 
     try {
-      // 1. Fetch the most recent GRNs for this specific PO
       const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/grn/get-grns-by-po`, {
         params: {
           poNumber: selectedPONumber,
-          _: Date.now() // Cache buster
+          _: Date.now()
         },
         headers: {
           'Cache-Control': 'no-cache'
         }
       });
 
-      // 2. Find the selected PO
       const selectedPO = purchaseOrders.find(po => po.poNumber === selectedPONumber);
       if (!selectedPO) {
         toast.error("Selected PO not found");
         return;
       }
 
-      // 3. Calculate remaining quantities with robust matching
       const itemsWithRemainingQty = selectedPO.items.map(poItem => {
-        // Sum all received quantities across GRNs
         const receivedQty = data.data.reduce((total, grn) => {
           const grnItem = grn.items?.find(i =>
             i.name && poItem.name &&
@@ -242,34 +220,73 @@ const GRN = () => {
           return total + (Number(grnItem?.qty) || 0);
         }, 0);
 
-        // Calculate remaining (never negative)
         const remainingQty = Math.max(0, poItem.qty - receivedQty);
 
         console.log(`Item: ${poItem.name} | Ordered: ${poItem.qty} | Received: ${receivedQty} | Remaining: ${remainingQty}`);
 
         return {
           ...poItem,
-          qty: remainingQty, // Set directly as the form value
+          qty: remainingQty,
           _originalQty: poItem.qty,
           _receivedQty: receivedQty,
           _remainingQty: remainingQty
         };
       });
 
-      // 4. Update all form fields at once
+      // Filter out items with 0 remaining quantity
+      const itemsWithAvailableQty = itemsWithRemainingQty.filter(item => item._remainingQty > 0);
+
+      if (itemsWithAvailableQty.length === 0) {
+        toast.error("All items in this PO have been fully received");
+        setFieldValue("poNumber", "");
+        return;
+      }
+
       setFieldValue("poNumber", selectedPO.poNumber);
       setFieldValue("poDate", selectedPO.date);
+      setFieldValue("companyName", selectedPO.companyName);
       setFieldValue("vendorName", selectedPO.vendorName);
       setFieldValue("vendorGST", selectedPO.vendorGST);
       setFieldValue("vendorAddress", selectedPO.vendorAddress);
       setFieldValue("vendorContact", selectedPO.vendorContact);
       setFieldValue("vendorEmail", selectedPO.vendorEmail);
       setGstType(selectedPO.gstType);
-      setFieldValue("items", itemsWithRemainingQty);
+      setFieldValue("items", itemsWithAvailableQty);
 
     } catch (error) {
       console.error("PO selection error:", error);
       toast.error("Failed to load PO details. Please try again.");
+    }
+  };
+
+  const isPOFullyFulfilled = async (poNumber) => {
+    try {
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/grn/get-grns-by-po`, {
+        params: { poNumber }
+      });
+
+      const selectedPO = purchaseOrders.find(po => po.poNumber === poNumber);
+      if (!selectedPO) return false;
+
+      for (const poItem of selectedPO.items) {
+        const receivedQty = data.data.reduce((total, grn) => {
+          const grnItem = grn.items?.find(i =>
+            i.name && poItem.name &&
+            i.name.toString().trim().toLowerCase() ===
+            poItem.name.toString().trim().toLowerCase()
+          );
+          return total + (Number(grnItem?.qty) || 0);
+        }, 0);
+
+        if (receivedQty < poItem.qty) {
+          return false; // At least one item is not fully fulfilled
+        }
+      }
+
+      return true; // All items are fully fulfilled
+    } catch (error) {
+      console.error("Error checking PO fulfillment:", error);
+      return false;
     }
   };
 
@@ -288,7 +305,6 @@ const GRN = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    // Final quantity validation
     const invalidItems = values.items.filter(item =>
       item._remainingQty !== undefined && item.qty > item._remainingQty
     );
@@ -318,9 +334,6 @@ const GRN = () => {
     }
   };
 
-
-
-
   const handleExportPDF = () => {
     if (!selectedGRN) return toast.warn("Select a GRN to export");
     const element = document.getElementById("grn-pdf");
@@ -334,18 +347,17 @@ const GRN = () => {
     html2pdf().from(element).set(options).save();
   };
 
-
   const handleExportExcel = () => {
     if (grns.length === 0) {
       toast.warn("No GRNs to export");
       return;
     }
 
-    // Prepare data for Excel
     const data = grns.map(grn => ({
       'GRN No': grn.grnNumber,
       'Date': grn.grnDate,
-      'Vendor': grn.vendorName,
+      'Company': grn.companyName,
+      'Contact Person': grn.vendorName,
       'PO Number': grn.poNumber,
       'Total': grn.total?.toFixed(2),
       'GST Type': grn.vendorGST?.startsWith('24') ? 'intra' : 'inter',
@@ -359,14 +371,82 @@ const GRN = () => {
     toast.success("Exported all GRNs to Excel");
   };
 
-  // Then create a new GRNModal component (add this near the top of your file)
-  const GRNModal = ({ grn, onClose, onExport }) => {
+  const handleUpdateGRN = async (updatedGRN) => {
+    try {
+      // Only send the allowed fields for update
+      const updateData = {
+         grnDate: updatedGRN.grnDate,
+        lrNumber: updatedGRN.lrNumber,
+        transporter: updatedGRN.transporter,
+        vehicleNo: updatedGRN.vehicleNo
+      };
+
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/grn/update-grn/${updatedGRN.grnNumber}`,
+        updateData
+      );
+
+      setGRNs(prev =>
+        prev.map(grn =>
+          grn.grnNumber === updatedGRN.grnNumber ? response.data.data : grn
+        )
+      );
+      setSelectedGRN(response.data.data); // Add this line to update the selected GRN
+      toast.success("GRN updated successfully!");
+    } catch (error) {
+      console.error("Error updating GRN:", error);
+      toast.error(error.response?.data?.message || "Error updating GRN");
+    }
+  };
+
+  const handleDeleteGRN = async (grnNumber) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/grn/delete-grn/${grnNumber}`
+      );
+
+      setGRNs(prev => prev.filter(grn => grn.grnNumber !== grnNumber));
+      setSelectedGRN(null);
+      toast.success("GRN deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting GRN:", error);
+      toast.error(error.response?.data?.message || "Error deleting GRN");
+    }
+  };
+
+
+
+  const GRNModal = ({ grn, onClose, onExport, onUpdate, onDelete }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedGRN, setEditedGRN] = useState({});
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     useEffect(() => {
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = 'auto';
       };
     }, []);
+
+    useEffect(() => {
+      if (grn) {
+        setEditedGRN({ ...grn });
+      }
+    }, [grn]);
+
+    const handleInputChange = (e) => {
+      const { name, value } = e.target;
+      setEditedGRN(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+      try {
+        await onUpdate(editedGRN);
+        setIsEditing(false);
+      } catch (error) {
+        console.error("Error updating GRN:", error);
+      }
+    };
 
     if (!grn) return null;
 
@@ -382,10 +462,19 @@ const GRN = () => {
 
           <div className="modal-body">
             <div className="grn-details-grid">
-              {/* Basic GRN Details */}
               <div className="detail-row">
                 <span className="detail-label">Date:</span>
-                <span className="detail-value">{grn.grnDate}</span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    name="grnDate"
+                    value={editedGRN.grnDate || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{grn.grnDate}</span>
+                )}
               </div>
               <div className="detail-row">
                 <span className="detail-label">PO Number:</span>
@@ -396,25 +485,56 @@ const GRN = () => {
                 <span className="detail-value">{grn.poDate}</span>
               </div>
 
-              {/* Transport Details */}
+              {/* Editable fields */}
               <div className="detail-row">
                 <span className="detail-label">LR Number:</span>
-                <span className="detail-value">{grn.lrNumber || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Transporter:</span>
-                <span className="detail-value">{grn.transporter || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">Vehicle No:</span>
-                <span className="detail-value">{grn.vehicleNo || 'N/A'}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="lrNumber"
+                    value={editedGRN.lrNumber || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{grn.lrNumber || 'N/A'}</span>
+                )}
               </div>
 
-              {/* Vendor Details Section */}
+              <div className="detail-row">
+                <span className="detail-label">Transporter:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="transporter"
+                    value={editedGRN.transporter || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{grn.transporter || 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-row">
+                <span className="detail-label">Vehicle No:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="vehicleNo"
+                    value={editedGRN.vehicleNo || ''}
+                    onChange={handleInputChange}
+                    className="edit-input"
+                  />
+                ) : (
+                  <span className="detail-value">{grn.vehicleNo || 'N/A'}</span>
+                )}
+              </div>
+
               <div className="section-header">Vendor Details</div>
               <div className="detail-row">
-                <span className="detail-label">Name:</span>
-                <span className="detail-value">{grn.vendorName}</span>
+                <span className="detail-label">Company Name:</span>
+                <span className="detail-value">{grn.companyName || 'N/A'}</span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">GSTIN:</span>
@@ -425,6 +545,10 @@ const GRN = () => {
                 <span className="detail-value">{grn.vendorAddress}</span>
               </div>
               <div className="detail-row">
+                <span className="detail-label">Contact Person:</span>
+                <span className="detail-value">{grn.vendorName}</span>
+              </div>
+              <div className="detail-row">
                 <span className="detail-label">Contact:</span>
                 <span className="detail-value">{grn.vendorContact}</span>
               </div>
@@ -433,7 +557,6 @@ const GRN = () => {
                 <span className="detail-value">{grn.vendorEmail}</span>
               </div>
 
-              {/* Items Section */}
               <div className="section-header">Items Received</div>
               <div className="items-grid">
                 {grn.items.map((item, index) => (
@@ -452,7 +575,6 @@ const GRN = () => {
                 ))}
               </div>
 
-              {/* Additional Information */}
               {grn.comments && (
                 <div>
                   <div className="section-header">Special Instructions</div>
@@ -462,7 +584,6 @@ const GRN = () => {
                 </div>
               )}
 
-              {/* Totals Section */}
               <div className="section-header">Summary</div>
               <div className="totals-section">
                 <div className="total-row">
@@ -505,12 +626,51 @@ const GRN = () => {
             <button className="export-btn" onClick={onExport}>
               <FaFileExport /> Export as PDF
             </button>
+            <button
+              className={`update-btn ${isEditing ? 'save-btn' : ''}`}
+              onClick={isEditing ? handleSave : () => setIsEditing(true)}
+            >
+              {isEditing ? <FaSave /> : <FaEdit />}
+              {isEditing ? "Save Changes" : "Update"}
+            </button>
+            <button
+              className="delete-btn"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <FaTrash /> Delete
+            </button>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="confirm-dialog-overlay">
+            <div className="confirm-dialog">
+              <h3>Confirm Deletion</h3>
+              <p>Are you sure you want to delete GRN {grn.grnNumber}? This action cannot be undone.</p>
+              <div className="confirm-buttons">
+                <button
+                  className="confirm-cancel"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-delete"
+                  onClick={() => {
+                    onDelete(grn.grnNumber);
+                    setShowDeleteConfirm(false);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
-
   return (
     <Navbar>
       <ToastContainer position="top-center" autoClose={3000} />
@@ -528,9 +688,6 @@ const GRN = () => {
               />
             </div>
             <div className="page-actions">
-              {/* <button className="export-btn" onClick={handleExportPDF}>
-                <FaFileExport /> Export
-              </button> */}
               <button className="export-all-btn" onClick={handleExportExcel}>
                 <FaFileExcel /> Export All
               </button>
@@ -551,7 +708,6 @@ const GRN = () => {
               validationSchema={validationSchema}
               validateOnBlur={true}
               validateOnChange={false}
-
               onSubmit={async (values, formikHelpers) => {
                 await handleSubmit(values, formikHelpers);
               }}
@@ -560,32 +716,24 @@ const GRN = () => {
                 useEffect(() => {
                   if (submitCount > 0 && Object.keys(errors).length > 0) {
                     Object.entries(errors).slice(0, 3).forEach(([field, error]) => {
-                      // If error is for items (array)
                       if (field === "items" && Array.isArray(error)) {
                         error.forEach((itemError, index) => {
                           if (itemError && typeof itemError === "object") {
-                            // Loop through each field error inside items
                             Object.entries(itemError).forEach(([key, val]) => {
                               toast.error(`Item ${index + 1} - ${key}: ${val}`);
                             });
                           }
                         });
                       } else {
-                        // Normal error
                         toast.error(`${field}: ${error}`);
                       }
                     });
                   }
                 }, [submitCount, errors]);
 
-
                 return (
                   <Form>
                     <div className="form-group-row">
-                      {/* <div className="grn-field-wrapper">
-                        <label>GRN Number</label>
-                        <Field name="grnNumber" readOnly placeholder="Generated after submission" />
-                      </div> */}
                       <div className="grn-field-wrapper">
                         <label>GRN Date</label>
                         <Field name="grnDate" type="date" />
@@ -598,10 +746,17 @@ const GRN = () => {
                           options={purchaseOrders.map(po => ({
                             value: po.poNumber,
                             label: `${po.poNumber} - ${po.vendorName}`,
-                            poData: po // Keep full PO data for reference
+                            poData: po
                           }))}
-                          onChange={(selectedOption) => {
+                          onChange={async (selectedOption) => {
                             if (selectedOption) {
+                              // Check if PO is fully fulfilled
+                              const isFulfilled = await isPOFullyFulfilled(selectedOption.value);
+                              if (isFulfilled) {
+                                toast.error("This PO has been fully fulfilled. Cannot create more GRNs for it.");
+                                return;
+                              }
+
                               handlePOSelect(
                                 { target: { value: selectedOption.value } },
                                 setFieldValue
@@ -613,6 +768,7 @@ const GRN = () => {
                           noOptionsMessage={() => "No POs found"}
                         />
                       </div>
+
                       <div className="grn-field-wrapper">
                         <label>PO Date</label>
                         <Field name="poDate" readOnly />
@@ -633,13 +789,30 @@ const GRN = () => {
 
                     <h3>Vendor Details</h3>
                     <div className="form-group-row">
-                      <Field name="vendorName" placeholder="Vendor Name" />
-                      <Field name="vendorGST" placeholder="Vendor GSTIN" readOnly />
-                      <Field name="vendorContact" placeholder="Vendor Contact " readOnly />
-                      <Field name="vendorEmail" type="email" placeholder="Vendor Email" readOnly />
+                      <div className="field-wrapper">
+                        <label>Company Name</label>
+                        <Field name="companyName" readOnly />
+                      </div>
+                      <div className="field-wrapper">
+                        <label>Contact Person</label>
+                        <Field name="vendorName" readOnly />
+                      </div>
+                      <div className="field-wrapper">
+                        <label>GSTIN</label>
+                        <Field name="vendorGST" readOnly />
+                      </div>
+                      <div className="field-wrapper">
+                        <label>Contact</label>
+                        <Field name="vendorContact" readOnly />
+                      </div>
+                      <div className="field-wrapper">
+                        <label>Email</label>
+                        <Field name="vendorEmail" readOnly />
+                      </div>
                     </div>
                     <div className="form-group">
-                      <Field name="vendorAddress" as="textarea" placeholder="Vendor Address" readOnly />
+                      <label>Address</label>
+                      <Field name="vendorAddress" as="textarea" readOnly />
                     </div>
 
                     <FieldArray name="items">
@@ -647,7 +820,6 @@ const GRN = () => {
                         <div className="form-items">
                           {values.items.map((_, index) => (
                             <div className="item-row" key={index}>
-                              {/* Sr No - Fixed width */}
                               <Field
                                 name={`items.${index}.srNo`}
                                 value={index + 1}
@@ -655,7 +827,6 @@ const GRN = () => {
                                 className="sr-no-field"
                               />
 
-                              {/* Item Name - Wider */}
                               <Field
                                 name={`items.${index}.name`}
                                 placeholder="Item"
@@ -663,7 +834,6 @@ const GRN = () => {
                                 className="item-name-field"
                               />
 
-                              {/* Description - Medium width */}
                               <Field
                                 name={`items.${index}.description`}
                                 placeholder="Description"
@@ -671,10 +841,9 @@ const GRN = () => {
                                 className="item-desc-field"
                               />
 
-                              {/* Quantity - Narrow */}
                               <div className="quantity-field-container">
                                 <Field name={`items.${index}.qty`}
-                                placeholder="Quantity">
+                                  placeholder="Quantity">
                                   {({ field, form }) => {
                                     const currentItem = form.values.items[index];
                                     const remainingQty = currentItem?._remainingQty;
@@ -683,7 +852,8 @@ const GRN = () => {
                                       <input
                                         {...field}
                                         type="number"
-                                        min="0"
+                                        min="0.01"        // Changed from min="0"
+                                        step="0.01"       // Added to allow decimal values
                                         max={remainingQty}
                                         onChange={(e) => {
                                           const value = e.target.value;
@@ -703,7 +873,6 @@ const GRN = () => {
                                 )}
                               </div>
 
-                              {/* Rate - Narrow */}
                               <Field
                                 name={`items.${index}.rate`}
                                 type="number"
@@ -711,7 +880,6 @@ const GRN = () => {
                                 className="rate-field"
                               />
 
-                              {/* Unit - Very Narrow */}
                               <Field
                                 name={`items.${index}.unit`}
                                 placeholder="Unit"
@@ -719,7 +887,6 @@ const GRN = () => {
                                 className="unit-field"
                               />
 
-                              {/* New Total Field - Calculated automatically */}
                               <Field
                                 name={`items.${index}.total`}
                                 value={(values.items[index].qty * values.items[index].rate || 0).toFixed(2)}
@@ -738,13 +905,6 @@ const GRN = () => {
                               )}
                             </div>
                           ))}
-                          {/* <button
-                            type="button"
-                            className="add-btn"
-                            onClick={() => push({ name: "", description: "", hsn: "", qty: "", rate: "", unit: "" })}
-                          >
-                            + Add Item
-                          </button> */}
                         </div>
                       )}
                     </FieldArray>
@@ -787,14 +947,15 @@ const GRN = () => {
               <tr>
                 <th>GRN No</th>
                 <th>Date</th>
-                <th>Vendor</th>
+                <th>Company</th>
+                <th>Contact Person</th>
                 <th>Total</th>
               </tr>
             </thead>
             <tbody>
               {showLoader ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '40px' }}>
                     <div className="table-loader"></div>
                   </td>
                 </tr>
@@ -807,6 +968,7 @@ const GRN = () => {
                   >
                     <td>{grn.grnNumber}</td>
                     <td>{grn.grnDate}</td>
+                    <td>{grn.companyName}</td>
                     <td>{grn.vendorName}</td>
                     <td>₹{grn.total.toFixed(2)}</td>
                   </tr>
@@ -825,6 +987,8 @@ const GRN = () => {
             grn={selectedGRN}
             onClose={() => setSelectedGRN(null)}
             onExport={handleExportPDF}
+            onUpdate={handleUpdateGRN}
+            onDelete={handleDeleteGRN}
           />
         )}
       </div>

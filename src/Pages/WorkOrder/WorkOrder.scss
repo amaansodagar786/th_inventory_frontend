@@ -51,8 +51,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding-bottom: 10px; 
-  padding-top: 15px; 
+  padding-bottom: 15px;
   border-bottom: 1px solid #eee;
 
   .right-section {
@@ -72,7 +71,7 @@
       width: 100%;
       padding: 8px 12px 8px 35px;
       border: 1px solid #ddd;
-      // border-radius: 50%; 
+      border-radius: 6px;
       font-size: 14px;
       outline: none;
 
@@ -287,7 +286,6 @@
   width: 100%;
   overflow-x: auto;
   margin-top: 20px;
-  // margin-top: 46px;
 
   table {
     width: 100%;

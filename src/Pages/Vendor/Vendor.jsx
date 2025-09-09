@@ -194,12 +194,22 @@ const Vendor = () => {
   };
 
   // Export All Excel
+  // Export All Excel - UPDATED VERSION
   const exportAllAsExcel = () => {
-    if (vendors.length === 0) {
+    // Use filteredVendors if search is active, otherwise use all vendors
+    const dataToExport = filteredVendors.length > 0 && debouncedSearch ? filteredVendors : vendors;
+
+    if (dataToExport.length === 0) {
       toast.warning("No vendors to export");
       return;
     }
-    const data = vendors.map((vendor) => ({
+
+    // Generate appropriate filename
+    const filename = filteredVendors.length > 0 && debouncedSearch
+      ? "filtered_vendors.xlsx"
+      : "all_vendors.xlsx";
+
+    const data = dataToExport.map((vendor) => ({
       "Vendor Name": vendor.vendorName,
       "Company Name": vendor.companyName,
       "GST Number": vendor.gstNumber,
@@ -215,7 +225,7 @@ const Vendor = () => {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Vendors");
-    XLSX.writeFile(workbook, "all_vendors.xlsx");
+    XLSX.writeFile(workbook, filename);
   };
 
 
