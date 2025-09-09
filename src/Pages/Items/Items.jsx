@@ -58,7 +58,9 @@ const Items = () => {
 
   const validationSchema = Yup.object({
     itemName: Yup.string().required("Item Name is required"),
-    minimumQty: Yup.number().required("Minimum Qty is required"),
+    minimumQty: Yup.number()
+      .required("Minimum Qty is required")
+      .min(1, "Minimum Qty must be greater than 0"),
     hsnCode: Yup.string().required("HSN is required"),
     unit: Yup.string().required("Unit is required"),
     description: Yup.string().required("Description is required"),
@@ -111,9 +113,9 @@ const Items = () => {
       resetForm();
       setShowForm(false);
     } catch (error) {
-      if (error.response && error.response.data.field === "hsnCode") {
-        const errorMessage = "Item with this HSN code already exists";
-        setFieldError("hsnCode", errorMessage);
+      if (error.response && error.response.data.field === "itemName") {
+        const errorMessage = "Item with this name already exists";
+        setFieldError("itemName", errorMessage);
         toast.error(errorMessage);
       } else {
         console.error("Error saving item:", error);
@@ -177,22 +179,13 @@ const Items = () => {
     html2pdf().from(content).set(opt).save();
   };
 
-  // Export All Excel - UPDATED VERSION
   const exportAllAsExcel = () => {
-    // Use filteredItems if search is active, otherwise use all items
-    const dataToExport = filteredItems.length > 0 && debouncedSearch ? filteredItems : items;
-
-    if (dataToExport.length === 0) {
+    if (items.length === 0) {
       toast.warning("No items to export");
       return;
     }
 
-    // Generate appropriate filename
-    const filename = filteredItems.length > 0 && debouncedSearch
-      ? "filtered_items.xlsx"
-      : "all_items.xlsx";
-
-    const data = dataToExport.map(item => ({
+    const data = items.map(item => ({
       "Item Name": item.itemName,
       "Minimum Qty": item.minimumQty,
       "HSN Code": item.hsnCode,
@@ -204,7 +197,7 @@ const Items = () => {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
-    XLSX.writeFile(workbook, filename);
+    XLSX.writeFile(workbook, "all_items.xlsx");
   };
 
   const handleUpdateItem = async (updatedItem) => {
@@ -270,7 +263,21 @@ const Items = () => {
       setEditedItem(prev => ({ ...prev, [name]: value }));
     };
 
+
     const handleSave = async () => {
+      // Validate minimumQty
+      if (!editedItem.minimumQty || editedItem.minimumQty <= 0) {
+        toast.error("Minimum Quantity must be greater than 0");
+        return;
+      }
+
+      // Validate other required fields
+      if (!editedItem.itemName || !editedItem.hsnCode || !editedItem.unit ||
+        !editedItem.taxSlab || !editedItem.description) {
+        toast.error("All fields are required");
+        return;
+      }
+
       try {
         await onUpdate(editedItem);
         setIsEditing(false);
@@ -321,6 +328,7 @@ const Items = () => {
                     value={editedItem.minimumQty || ''}
                     onChange={handleInputChange}
                     className="edit-input"
+                    min="1"
                   />
                 ) : (
                   <span className="detail-value">{item.minimumQty}</span>
@@ -478,7 +486,7 @@ const Items = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="action-buttons-group">
+            <div className="page-actions">
               {/* <button className="export-btn" onClick={exportSelectedAsPDF}>
                 <FaFileExport /> Export
               </button> */}

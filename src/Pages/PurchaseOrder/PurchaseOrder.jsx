@@ -28,8 +28,8 @@ Prices are subject to change without notice.
 `;
 
 // Static addresses
-const CONSIGNEE_ADDRESS = "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)";
-const DELIVERY_ADDRESS = "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)";
+const CONSIGNEE_ADDRESS = "SayajiGanj , Vadodara - 390001";
+const DELIVERY_ADDRESS = "SayajiGanj , Vadodara - 390001";
 
 const PurchaseOrder = () => {
     const [showForm, setShowForm] = useState(false);
@@ -103,6 +103,7 @@ const PurchaseOrder = () => {
         vendorAddress: "",
         vendorContact: "",
         vendorEmail: "",
+        vendorId: "",
         shipName: "",
         shipCompany: "Ferro Tube And Forge Industries",
         shipPhone: "",
@@ -114,7 +115,7 @@ const PurchaseOrder = () => {
         date: new Date().toISOString().slice(0, 10),
         discount: 0,
         taxSlab: "",
-        items: [{ name: "", description: "", hsn: "", qty: "", rate: "", unit: "" }],
+        items: [{ itemId: "", name: "", description: "", hsn: "", qty: "", rate: "", unit: "" }],
     };
 
     const validationSchema = Yup.object({
@@ -188,7 +189,9 @@ const PurchaseOrder = () => {
         const selectedCompanyName = e.target.value;
         const selectedVendor = vendors.find(v => v.companyName === selectedCompanyName);
         if (selectedVendor) {
+            
             setFieldValue("companyName", selectedVendor.companyName);
+            setFieldValue("vendorId", selectedVendor.vendorId);
             setFieldValue("vendorName", selectedVendor.vendorName);
             setFieldValue("vendorGST", selectedVendor.gstNumber);
             setFieldValue("vendorAddress", selectedVendor.address);
@@ -212,6 +215,7 @@ const PurchaseOrder = () => {
             setFieldValue(`items.${index}.description`, selectedItem.description);
             setFieldValue(`items.${index}.hsn`, selectedItem.hsnCode);
             setFieldValue(`items.${index}.unit`, selectedItem.unit);
+            setFieldValue(`items.${index}.itemId`, selectedItem.itemId);
             if (selectedItem.rate) {
                 setFieldValue(`items.${index}.rate`, selectedItem.rate);
             }

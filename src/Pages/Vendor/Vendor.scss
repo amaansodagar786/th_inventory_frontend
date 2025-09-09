@@ -32,7 +32,7 @@
       width: 100%;
       padding: 8px 12px 8px 35px;
       border: 1px solid #ddd;
-      // border-radius: 50%; 
+      border-radius: 6px;
       font-size: 14px;
       outline: none;
       // margin-top: 10px; 
@@ -350,6 +350,7 @@
   }
 }
 
+
 /* Edit Mode Styles */
 .edit-input,
 .edit-textarea {
@@ -516,6 +517,23 @@
       font-size: 14px;
     }
   }
+
+  .modal-footer {
+    
+    gap: 6px;
+    padding: 10px 15px;
+  
+  }
+
+  .modal-footer button {
+
+    gap: 6px;
+    color: white;
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+
+  }
 }
 
 @media (max-width: 480px) {
@@ -526,4 +544,16 @@
   .modal-body {
     padding: 15px;
   }
+}
+
+
+
+.error-field {
+  border: 2px solid red !important;
+}
+
+.error {
+  color: red;
+  font-size: 12px;
+  margin-top: 5px;
 }

@@ -18,18 +18,12 @@ const Vendor = () => {
   const [showForm, setShowForm] = useState(false);
   const [vendors, setVendors] = useState([]);
   const [selectedVendor, setSelectedVendor] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
-
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-
-
 
   // Debounce search term
   useEffect(() => {
@@ -88,7 +82,12 @@ const Vendor = () => {
 
   const validationSchema = Yup.object({
     vendorName: Yup.string()
-      .required("Vendor Name is required"),
+      .required("Contact Person is required")
+      .matches(/^(?![0-9]+$)[a-zA-Z0-9\s]*$/, "Contact Person cannot contain only numbers"),
+
+    companyName: Yup.string()
+      .required("Company Name is required")
+      .matches(/^(?![0-9]+$)[a-zA-Z0-9\s]*$/, "Company Name cannot contain only numbers"),
 
     email: Yup.string()
       .email("Invalid email")
@@ -96,13 +95,12 @@ const Vendor = () => {
 
     contactNumber: Yup.string()
       .matches(/^[0-9]+$/, "Contact Number must contain only digits")
-      .min(10, "Contact Number must be at least 10 digits")
-      // .max(10, "Contact Number must be exactly 10 digits") 
+      .min(10, "Contact Number must be exactly 10 digits")
+      .max(10, "Contact Number must be exactly 10 digits")
       .required("Contact Number is required"),
 
-    companyName: Yup.string(),
-
     gstNumber: Yup.string()
+      .required("GST Number is required")
       .matches(/^[0-9A-Z]+$/, "GST Number must contain only uppercase letters and digits")
       .min(15, "GST Number must be 15 characters")
       .max(15, "GST Number must be 15 characters"),
@@ -112,17 +110,16 @@ const Vendor = () => {
 
     contactNumber2: Yup.string()
       .matches(/^[0-9]+$/, "Contact Number must contain only digits")
-      .min(10, "Contact Number must be at least 10 digits"),
-    // .max(10, "Contact Number must be exactly 10 digits"), 
+      .min(10, "Contact Number must be exactly 10 digits")
+      .max(10, "Contact Number must be exactly 10 digits"),
 
     contactNumber3: Yup.string()
       .matches(/^[0-9]+$/, "Contact Number must contain only digits")
-      .min(10, "Contact Number must be at least 10 digits"),
-    // .max(10, "Contact Number must be exactly 10 digits"), 
+      .min(10, "Contact Number must be exactly 10 digits")
+      .max(10, "Contact Number must be exactly 10 digits"),
 
-    address: Yup.string(),
+    address: Yup.string().required("Address is required"),
   });
-
 
   // Update handleSubmit function
   const handleSubmit = async (values, { resetForm, setFieldError }) => {
@@ -153,6 +150,7 @@ const Vendor = () => {
   };
 
   // Export PDF
+  // Export PDF
   const exportSelectedAsPDF = () => {
     if (!selectedVendor) {
       toast.warning("Please select a vendor to export");
@@ -161,24 +159,86 @@ const Vendor = () => {
     const vendor = vendors.find((v) => v.vendorId === selectedVendor);
 
     const content = `
-  <div style="font-family: 'Arial', sans-serif; padding: 30px; background: #fff;">
-    <h1 style="color: #3f3f91; text-align: center; margin-bottom: 20px; font-size: 24px;">
-      Vendor Details
-    </h1>
-    <div style="border: 1px solid #ddd; border-radius: 8px; padding: 20px;">
-      <h2 style="color: #3f3f91; margin-bottom: 15px; font-size: 20px;">
-        ${vendor.vendorName}
-      </h2>
-      <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 15px;" />
-      <p><strong>Company Name:</strong> ${vendor.companyName || 'N/A'}</p>
-      <p><strong>GST Number:</strong> ${vendor.gstNumber || 'N/A'}</p>
-      <p><strong>Primary Email:</strong> ${vendor.email || 'N/A'}</p>
-      ${vendor.email2 ? `<p><strong>Secondary Email:</strong> ${vendor.email2}</p>` : ''}
-      ${vendor.email3 ? `<p><strong>Tertiary Email:</strong> ${vendor.email3}</p>` : ''}
-      <p><strong>Primary Contact:</strong> ${vendor.contactNumber || 'N/A'}</p>
-      ${vendor.contactNumber2 ? `<p><strong>Secondary Contact:</strong> ${vendor.contactNumber2}</p>` : ''}
-      ${vendor.contactNumber3 ? `<p><strong>Tertiary Contact:</strong> ${vendor.contactNumber3}</p>` : ''}
-      <p><strong>Address:</strong> ${vendor.address || 'N/A'}</p>
+  <div style="font-family: 'Arial', sans-serif; padding: 30px; background: #fff; max-width: 800px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="color: #3f3f91; margin: 0; font-size: 28px; font-weight: bold;">Vendor Details</h1>
+      <div style="height: 3px; background: linear-gradient(90deg, #3f3f91, #6a6ac5); width: 100px; margin: 10px auto;"></div>
+    </div>
+    
+    <div style="border: 2px solid #3f3f91; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+      <div style="background: #3f3f91; padding: 15px; color: white;">
+        <h2 style="margin: 0; font-size: 22px;">${vendor.vendorName || 'N/A'}</h2>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">${vendor.companyName || 'N/A'}</p>
+      </div>
+      
+      <div style="padding: 25px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+          <div>
+            <h3 style="color: #3f3f91; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Information</h3>
+            
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Primary Email</div>
+              <div>${vendor.email || 'N/A'}</div>
+            </div>
+            
+            ${vendor.email2 ? `
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Secondary Email</div>
+              <div>${vendor.email2}</div>
+            </div>
+            ` : ''}
+            
+            ${vendor.email3 ? `
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Tertiary Email</div>
+              <div>${vendor.email3}</div>
+            </div>
+            ` : ''}
+            
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Primary Contact</div>
+              <div>${vendor.contactNumber || 'N/A'}</div>
+            </div>
+            
+            ${vendor.contactNumber2 ? `
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Secondary Contact</div>
+              <div>${vendor.contactNumber2}</div>
+            </div>
+            ` : ''}
+            
+            ${vendor.contactNumber3 ? `
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Tertiary Contact</div>
+              <div>${vendor.contactNumber3}</div>
+            </div>
+            ` : ''}
+          </div>
+          
+          <div>
+            <h3 style="color: #3f3f91; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 8px;">Company Details</h3>
+            
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">GST Number</div>
+              <div>${vendor.gstNumber || 'N/A'}</div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Address</div>
+              <div>${vendor.address || 'N/A'}</div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+              <div style="font-weight: bold; color: #555; margin-bottom: 4px;">Created Date</div>
+              <div>${new Date(vendor.createdAt || vendor._id?.getTimestamp()).toLocaleDateString()}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: center; margin-top: 20px; border: 1px dashed #ddd;">
+          <div style="font-style: italic; color: #777;">Generated on ${new Date().toLocaleDateString()}</div>
+        </div>
+      </div>
     </div>
   </div>`;
 
@@ -194,22 +254,12 @@ const Vendor = () => {
   };
 
   // Export All Excel
-  // Export All Excel - UPDATED VERSION
   const exportAllAsExcel = () => {
-    // Use filteredVendors if search is active, otherwise use all vendors
-    const dataToExport = filteredVendors.length > 0 && debouncedSearch ? filteredVendors : vendors;
-
-    if (dataToExport.length === 0) {
+    if (vendors.length === 0) {
       toast.warning("No vendors to export");
       return;
     }
-
-    // Generate appropriate filename
-    const filename = filteredVendors.length > 0 && debouncedSearch
-      ? "filtered_vendors.xlsx"
-      : "all_vendors.xlsx";
-
-    const data = dataToExport.map((vendor) => ({
+    const data = vendors.map((vendor) => ({
       "Vendor Name": vendor.vendorName,
       "Company Name": vendor.companyName,
       "GST Number": vendor.gstNumber,
@@ -225,9 +275,8 @@ const Vendor = () => {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Vendors");
-    XLSX.writeFile(workbook, filename);
+    XLSX.writeFile(workbook, "all_vendors.xlsx");
   };
-
 
   // Add these functions to your Vendor component
   const handleUpdateVendor = async (updatedVendor) => {
@@ -266,11 +315,11 @@ const Vendor = () => {
     }
   };
 
-
   const VendorModal = ({ vendor, onClose, onExport, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedVendor, setEditedVendor] = useState({});
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [errors, setErrors] = useState({});
 
     useEffect(() => {
       document.body.style.overflow = 'hidden';
@@ -282,18 +331,76 @@ const Vendor = () => {
     useEffect(() => {
       if (vendor) {
         setEditedVendor({ ...vendor });
+        setErrors({});
       }
     }, [vendor]);
+
+    // Validation function for the modal form
+    const validateForm = (values) => {
+      const newErrors = {};
+
+      // Required fields validation
+      if (!values.vendorName) newErrors.vendorName = "Contact Person is required";
+      else if (/^[0-9]+$/.test(values.vendorName)) newErrors.vendorName = "Contact Person cannot contain only numbers";
+
+      if (!values.companyName) newErrors.companyName = "Company Name is required";
+      else if (/^[0-9]+$/.test(values.companyName)) newErrors.companyName = "Company Name cannot contain only numbers";
+
+      if (!values.email) newErrors.email = "Primary Email is required";
+      else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email))
+        newErrors.email = "Invalid email address";
+
+      if (!values.contactNumber) newErrors.contactNumber = "Primary Contact is required";
+      else if (!/^[0-9]+$/.test(values.contactNumber)) newErrors.contactNumber = "Must be only digits";
+      else if (values.contactNumber.length !== 10) newErrors.contactNumber = "Must be exactly 10 digits";
+
+      if (!values.gstNumber) newErrors.gstNumber = "GST Number is required";
+      else if (!/^[0-9A-Z]+$/.test(values.gstNumber)) newErrors.gstNumber = "GST Number must contain only uppercase letters and digits";
+      else if (values.gstNumber.length !== 15) newErrors.gstNumber = "GST number must be exactly 15 characters";
+
+      if (!values.address) newErrors.address = "Address is required";
+
+      // Optional fields validation
+      if (values.email2 && !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email2))
+        newErrors.email2 = "Invalid email address";
+
+      if (values.email3 && !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email3))
+        newErrors.email3 = "Invalid email address";
+
+      if (values.contactNumber2 && !/^[0-9]*$/.test(values.contactNumber2))
+        newErrors.contactNumber2 = "Must be only digits";
+      else if (values.contactNumber2 && values.contactNumber2.length !== 10)
+        newErrors.contactNumber2 = "Must be exactly 10 digits";
+
+      if (values.contactNumber3 && !/^[0-9]*$/.test(values.contactNumber3))
+        newErrors.contactNumber3 = "Must be only digits";
+      else if (values.contactNumber3 && values.contactNumber3.length !== 10)
+        newErrors.contactNumber3 = "Must be exactly 10 digits";
+
+      return newErrors;
+    };
 
     const handleInputChange = (e) => {
       const { name, value } = e.target;
       setEditedVendor(prev => ({ ...prev, [name]: value }));
+
+      // Validate the field in real-time
+      const fieldErrors = validateForm({ ...editedVendor, [name]: value });
+      setErrors(prev => ({ ...prev, [name]: fieldErrors[name] }));
     };
 
     const handleSave = async () => {
+      const formErrors = validateForm(editedVendor);
+      if (Object.keys(formErrors).length > 0) {
+        setErrors(formErrors);
+        toast.error("Please fix the errors before saving");
+        return;
+      }
+
       try {
         await onUpdate(editedVendor);
         setIsEditing(false);
+        setErrors({});
       } catch (error) {
         console.error("Error updating vendor:", error);
       }
@@ -315,49 +422,58 @@ const Vendor = () => {
 
           <div className="modal-body">
             <div className="wo-details-grid">
-              {/* Vendor Name */}
-              <div className="detail-row">
-                <span className="detail-label">Vendor Name:</span>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="vendorName"
-                    value={editedVendor.vendorName || ''}
-                    onChange={handleInputChange}
-                    className="edit-input"
-                  />
-                ) : (
-                  <span className="detail-value">{vendor.vendorName}</span>
-                )}
-              </div>
-
               {/* Company Name */}
               <div className="detail-row">
-                <span className="detail-label">Company Name:</span>
+                <span className="detail-label">Company Name *</span>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    name="companyName"
-                    value={editedVendor.companyName || ''}
-                    onChange={handleInputChange}
-                    className="edit-input"
-                  />
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={editedVendor.companyName || ''}
+                      onChange={handleInputChange}
+                      className={`edit-input ${errors.companyName ? 'error' : ''}`}
+                    />
+                    {errors.companyName && <div className="error-message">{errors.companyName}</div>}
+                  </div>
                 ) : (
                   <span className="detail-value">{vendor.companyName || 'N/A'}</span>
                 )}
               </div>
 
+              {/* Vendor Name */}
+              <div className="detail-row">
+                <span className="detail-label">Contact Person *</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      name="vendorName"
+                      value={editedVendor.vendorName || ''}
+                      onChange={handleInputChange}
+                      className={`edit-input ${errors.vendorName ? 'error' : ''}`}
+                    />
+                    {errors.vendorName && <div className="error-message">{errors.vendorName}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{vendor.vendorName}</span>
+                )}
+              </div>
+
               {/* GST Number */}
               <div className="detail-row">
-                <span className="detail-label">GST Number:</span>
+                <span className="detail-label">GST Number *</span>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    name="gstNumber"
-                    value={editedVendor.gstNumber || ''}
-                    onChange={handleInputChange}
-                    className="edit-input"
-                  />
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      name="gstNumber"
+                      value={editedVendor.gstNumber || ''}
+                      onChange={handleInputChange}
+                      className={`edit-input ${errors.gstNumber ? 'error' : ''}`}
+                    />
+                    {errors.gstNumber && <div className="error-message">{errors.gstNumber}</div>}
+                  </div>
                 ) : (
                   <span className="detail-value">{vendor.gstNumber || 'N/A'}</span>
                 )}
@@ -365,119 +481,132 @@ const Vendor = () => {
 
               {/* Primary Email */}
               <div className="detail-row">
-                <span className="detail-label">Primary Email:</span>
+                <span className="detail-label">Primary Email *</span>
                 {isEditing ? (
-                  <input
-                    type="email"
-                    name="email"
-                    value={editedVendor.email || ''}
-                    onChange={handleInputChange}
-                    className="edit-input"
-                  />
+                  <div className="edit-field-container">
+                    <input
+                      type="email"
+                      name="email"
+                      value={editedVendor.email || ''}
+                      onChange={handleInputChange}
+                      className={`edit-input ${errors.email ? 'error' : ''}`}
+                    />
+                    {errors.email && <div className="error-message">{errors.email}</div>}
+                  </div>
                 ) : (
                   <span className="detail-value">{vendor.email || 'N/A'}</span>
                 )}
               </div>
 
               {/* Secondary Email */}
-              {vendor.email2 && (
-                <div className="detail-row">
-                  <span className="detail-label">Secondary Email:</span>
-                  {isEditing ? (
+              <div className="detail-row">
+                <span className="detail-label">Secondary Email</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
                     <input
                       type="email"
                       name="email2"
                       value={editedVendor.email2 || ''}
                       onChange={handleInputChange}
-                      className="edit-input"
+                      className={`edit-input ${errors.email2 ? 'error' : ''}`}
                     />
-                  ) : (
-                    <span className="detail-value">{vendor.email2}</span>
-                  )}
-                </div>
-              )}
+                    {errors.email2 && <div className="error-message">{errors.email2}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{vendor.email2 || 'N/A'}</span>
+                )}
+              </div>
 
               {/* Tertiary Email */}
-              {vendor.email3 && (
-                <div className="detail-row">
-                  <span className="detail-label">Tertiary Email:</span>
-                  {isEditing ? (
+              <div className="detail-row">
+                <span className="detail-label">Tertiary Email</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
                     <input
                       type="email"
                       name="email3"
                       value={editedVendor.email3 || ''}
                       onChange={handleInputChange}
-                      className="edit-input"
+                      className={`edit-input ${errors.email3 ? 'error' : ''}`}
                     />
-                  ) : (
-                    <span className="detail-value">{vendor.email3}</span>
-                  )}
-                </div>
-              )}
+                    {errors.email3 && <div className="error-message">{errors.email3}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{vendor.email3 || 'N/A'}</span>
+                )}
+              </div>
 
               {/* Primary Contact */}
               <div className="detail-row">
-                <span className="detail-label">Primary Contact:</span>
+                <span className="detail-label">Primary Contact *</span>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    name="contactNumber"
-                    value={editedVendor.contactNumber || ''}
-                    onChange={handleInputChange}
-                    className="edit-input"
-                  />
+                  <div className="edit-field-container">
+                    <input
+                      type="text"
+                      name="contactNumber"
+                      value={editedVendor.contactNumber || ''}
+                      onChange={handleInputChange}
+                      className={`edit-input ${errors.contactNumber ? 'error' : ''}`}
+                    />
+                    {errors.contactNumber && <div className="error-message">{errors.contactNumber}</div>}
+                  </div>
                 ) : (
                   <span className="detail-value">{vendor.contactNumber || 'N/A'}</span>
                 )}
               </div>
 
               {/* Secondary Contact */}
-              {vendor.contactNumber2 && (
-                <div className="detail-row">
-                  <span className="detail-label">Secondary Contact:</span>
-                  {isEditing ? (
+              <div className="detail-row">
+                <span className="detail-label">Secondary Contact</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
                     <input
                       type="text"
                       name="contactNumber2"
                       value={editedVendor.contactNumber2 || ''}
                       onChange={handleInputChange}
-                      className="edit-input"
+                      className={`edit-input ${errors.contactNumber2 ? 'error' : ''}`}
                     />
-                  ) : (
-                    <span className="detail-value">{vendor.contactNumber2}</span>
-                  )}
-                </div>
-              )}
+                    {errors.contactNumber2 && <div className="error-message">{errors.contactNumber2}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{vendor.contactNumber2 || 'N/A'}</span>
+                )}
+              </div>
 
               {/* Tertiary Contact */}
-              {vendor.contactNumber3 && (
-                <div className="detail-row">
-                  <span className="detail-label">Tertiary Contact:</span>
-                  {isEditing ? (
+              <div className="detail-row">
+                <span className="detail-label">Tertiary Contact</span>
+                {isEditing ? (
+                  <div className="edit-field-container">
                     <input
                       type="text"
                       name="contactNumber3"
                       value={editedVendor.contactNumber3 || ''}
                       onChange={handleInputChange}
-                      className="edit-input"
+                      className={`edit-input ${errors.contactNumber3 ? 'error' : ''}`}
                     />
-                  ) : (
-                    <span className="detail-value">{vendor.contactNumber3}</span>
-                  )}
-                </div>
-              )}
+                    {errors.contactNumber3 && <div className="error-message">{errors.contactNumber3}</div>}
+                  </div>
+                ) : (
+                  <span className="detail-value">{vendor.contactNumber3 || 'N/A'}</span>
+                )}
+              </div>
 
               {/* Address */}
               <div className="detail-row">
-                <span className="detail-label">Address:</span>
+                <span className="detail-label">Address *</span>
                 {isEditing ? (
-                  <textarea
-                    name="address"
-                    value={editedVendor.address || ''}
-                    onChange={handleInputChange}
-                    className="edit-textarea"
-                    rows="3"
-                  />
+                  <div className="edit-field-container">
+                    <textarea
+                      name="address"
+                      value={editedVendor.address || ''}
+                      onChange={handleInputChange}
+                      className={`edit-textarea ${errors.address ? 'error' : ''}`}
+                      rows="3"
+                    />
+                    {errors.address && <div className="error-message">{errors.address}</div>}
+                  </div>
                 ) : (
                   <span className="detail-value">{vendor.address || 'N/A'}</span>
                 )}
@@ -543,19 +672,6 @@ const Vendor = () => {
     );
   };
 
-  {
-    selectedVendor && (
-      <VendorModal
-        vendor={vendors.find(v => v.vendorId === selectedVendor)}
-        onClose={() => setSelectedVendor(null)}
-        onExport={exportSelectedAsPDF}
-        onUpdate={handleUpdateVendor}
-        onDelete={handleDeleteVendor}
-      />
-    )
-  }
-
-
   return (
     <Navbar>
       <ToastContainer position="top-center" autoClose={3000} />
@@ -572,11 +688,7 @@ const Vendor = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            {/* <div className="page-actions"> */}
-            <div className="action-buttons-group">
-              {/* <button className="export-btn" onClick={exportSelectedAsPDF}>
-                <FaFileExport /> Export
-              </button> */}
+            <div className="page-actions">
               <button className="export-all-btn" onClick={exportAllAsExcel}>
                 <FaFileExcel /> Export All
               </button>
@@ -596,16 +708,18 @@ const Vendor = () => {
               onSubmit={handleSubmit}
             >
               <Form>
-                {/* Vendor Name + Company Name (unchanged) */}
+                {/* Vendor Name + Company Name */}
                 <div className="form-row">
+
                   <div className="form-field">
-                    <label><FaUserTie /> Vendor Name *</label>
-                    <Field name="vendorName" type="text" />
-                    <ErrorMessage name="vendorName" component="div" className="error" />
+                    <label><FaIdCard /> Company Name *</label>
+                    <Field name="companyName" type="text" />
+                    <ErrorMessage name="companyName" component="div" className="error" />
                   </div>
                   <div className="form-field">
-                    <label><FaIdCard /> Company Name</label>
-                    <Field name="companyName" type="text" />
+                    <label><FaUserTie /> Contact Person *</label>
+                    <Field name="vendorName" type="text" />
+                    <ErrorMessage name="vendorName" component="div" className="error" />
                   </div>
                 </div>
 
@@ -632,6 +746,8 @@ const Vendor = () => {
                   <div className="form-field">
                     <label><FaPhone /> Secondary Contact</label>
                     <Field name="contactNumber2" type="text" />
+                    <ErrorMessage name="contactNumber2" component="div" className="error" />
+
                   </div>
                 </div>
 
@@ -644,6 +760,8 @@ const Vendor = () => {
                   <div className="form-field">
                     <label><FaPhone /> Tertiary Contact</label>
                     <Field name="contactNumber3" type="text" />
+                    <ErrorMessage name="contactNumber3" component="div" className="error" />
+
                   </div>
                 </div>
 
@@ -676,22 +794,28 @@ const Vendor = () => {
                   <div className="form-field">
                     <label><FaPhone /> Secondary Contact</label>
                     <Field name="contactNumber2" type="text" />
+                    <ErrorMessage name="contactNumber2" component="div" className="error" />
+
                   </div>
                   <div className="form-field">
                     <label><FaPhone /> Tertiary Contact</label>
                     <Field name="contactNumber3" type="text" />
+                    <ErrorMessage name="contactNumber3" component="div" className="error" />
+
                   </div>
                 </div>
 
-                {/* GST + Address (unchanged) */}
+                {/* GST + Address */}
                 <div className="form-row">
                   <div className="form-field">
-                    <label><FaIdCard /> GST Number</label>
+                    <label><FaIdCard /> GST Number *</label>
                     <Field name="gstNumber" type="text" />
+                    <ErrorMessage name="gstNumber" component="div" className="error" />
                   </div>
                   <div className="form-field">
-                    <label><FaMapMarkerAlt /> Address</label>
+                    <label><FaMapMarkerAlt /> Address *</label>
                     <Field name="address" as="textarea" rows="3" />
+                    <ErrorMessage name="address" component="div" className="error" />
                   </div>
                 </div>
 
@@ -731,7 +855,6 @@ const Vendor = () => {
             </tbody>
           </table>
         </div>
-
 
         {selectedVendor && (
           <VendorModal

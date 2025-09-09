@@ -118,8 +118,10 @@ const GRN = () => {
     vendorAddress: "",
     vendorContact: "",
     vendorEmail: "",
+    vendorId: "",
     items: [
       {
+        itemId: "",
         name: "",
         description: "",
         hsn: "",
@@ -226,6 +228,7 @@ const GRN = () => {
 
         return {
           ...poItem,
+          itemId: poItem.itemId,
           qty: remainingQty,
           _originalQty: poItem.qty,
           _receivedQty: receivedQty,
@@ -250,6 +253,7 @@ const GRN = () => {
       setFieldValue("vendorAddress", selectedPO.vendorAddress);
       setFieldValue("vendorContact", selectedPO.vendorContact);
       setFieldValue("vendorEmail", selectedPO.vendorEmail);
+      setFieldValue("vendorId", selectedPO.vendorId);
       setGstType(selectedPO.gstType);
       setFieldValue("items", itemsWithAvailableQty);
 
@@ -320,7 +324,14 @@ const GRN = () => {
     try {
       const numericOtherCharges = Number(values.otherCharges || 0);
       const totals = calculateTotals(values.items, numericOtherCharges, values.vendorGST);
-      const newGRN = { ...values, otherCharges: numericOtherCharges, ...totals };
+      const newGRN = {
+        ...values, otherCharges: numericOtherCharges, ...totals,
+        vendorId: values.vendorId, // Ensure vendorId is included
+        items: values.items.map(item => ({
+          ...item,
+          itemId: item.itemId // Ensure itemId is included for each item
+        }))
+      };
 
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/grn/create-grn`, newGRN);
       setGRNs(prev => [response.data.data, ...prev]);
@@ -375,7 +386,7 @@ const GRN = () => {
     try {
       // Only send the allowed fields for update
       const updateData = {
-         grnDate: updatedGRN.grnDate,
+        grnDate: updatedGRN.grnDate,
         lrNumber: updatedGRN.lrNumber,
         transporter: updatedGRN.transporter,
         vehicleNo: updatedGRN.vehicleNo
