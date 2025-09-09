@@ -184,6 +184,7 @@ const Sales = () => {
     poDate: "",
     vehicleNumber: "",
     receiver: {
+      customerId: "",
       companyName: "",
       name: "",
       gstin: "",
@@ -311,6 +312,7 @@ const Sales = () => {
 
         return {
           ...woItem,
+          bomId: woItem.bomId,
           quantity: remainingQty,
           _originalQty: woItem.quantity,
           _soldQty: soldQty,
@@ -331,6 +333,7 @@ const Sales = () => {
 
       if (selectedWO.receiver) {
         // Set receiver details including companyName
+        setFieldValue("receiver.customerId", selectedWO.receiver.customerId || "");
         setFieldValue("receiver.companyName", selectedWO.receiver.companyName || "");
         setFieldValue("receiver.name", selectedWO.receiver.name || "");
         setFieldValue("receiver.gstin", selectedWO.receiver.gstin || "");

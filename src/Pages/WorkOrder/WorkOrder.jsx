@@ -204,6 +204,7 @@ const WorkOrder = () => {
         poNumber: "",
         poDate: "",
         receiver: {
+            customerId: "", 
             companyName: "",
             name: "",
             gstin: "",
@@ -284,6 +285,7 @@ const WorkOrder = () => {
     const handleCompanySelect = (selectedOption, setFieldValue) => {
         if (selectedOption) {
             const selectedCustomer = selectedOption.customerData;
+            setFieldValue("receiver.customerId", selectedCustomer.customerId);
             setFieldValue("receiver.companyName", selectedCustomer.companyName);
             setFieldValue("receiver.name", selectedCustomer.customerName);
             setFieldValue("receiver.gstin", selectedCustomer.gstNumber);
@@ -542,6 +544,7 @@ const WorkOrder = () => {
                     ...prev,
                     receiver: {
                         ...prev.receiver,
+                        customerId: selectedCustomer.customerId,
                         companyName: selectedCustomer.companyName,
                         name: selectedCustomer.customerName,
                         gstin: selectedCustomer.gstNumber,
