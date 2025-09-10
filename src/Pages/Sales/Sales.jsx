@@ -710,25 +710,128 @@ const Sales = () => {
 
 
   const handleExportExcel = () => {
-    if (invoices.length === 0) {
+    // Use filteredInvoices instead of invoices when search is applied
+    const dataToExport = filteredInvoices.length > 0 ? filteredInvoices : invoices;
+
+    if (dataToExport.length === 0) {
       toast.warn("No invoices to export");
       return;
     }
 
-    const data = invoices.map(invoice => ({
-      'Invoice No': invoice.invoiceNumber,
-      'Date': invoice.invoiceDate,
-      'Receiver': invoice.receiver.name,
-      'Total': invoice.total?.toFixed(2),
-      'PO Number': invoice.poNumber,
-      'Consignee': invoice.consignee.name,
-    }));
+    // Create detailed data for export
+    const data = dataToExport.map((invoice) => {
+      // Format items as a string for easier reading in Excel
+      const itemsString = invoice.items?.map(item =>
+        `${item.name || 'N/A'} (Qty: ${item.quantity || 0} ${item.units || ''})`
+      ).join('; ') || 'No items';
 
+      // Calculate totals
+      const totals = calculateTotals(
+        invoice.items || [],
+        invoice.receiver?.gstin || "",
+        {
+          tcsPercent: invoice.tcsPercent || 0
+        },
+        invoice.taxSlab || 18
+      );
+
+      return {
+        'Invoice No': invoice.invoiceNumber || 'N/A',
+        'Invoice Date': invoice.invoiceDate || 'N/A',
+        'Work Order No': invoice.workOrderNumber || 'N/A',
+        'PO Number': invoice.poNumber || 'N/A',
+        'PO Date': invoice.poDate || 'N/A',
+        'Company Name': invoice.receiver?.companyName || 'N/A',
+        'Receiver Name': invoice.receiver?.name || 'N/A',
+        'Receiver GSTIN': invoice.receiver?.gstin || 'N/A',
+        'Receiver Address': invoice.receiver?.address || 'N/A',
+        'Receiver City': invoice.receiver?.city || 'N/A',
+        'Receiver Pincode': invoice.receiver?.pincode || 'N/A',
+        'Receiver Contact': invoice.receiver?.contact || 'N/A',
+        'Receiver Email': invoice.receiver?.email || 'N/A',
+        'Consignee Name': invoice.consignee?.name || 'N/A',
+        'Consignee GSTIN': invoice.consignee?.gstin || 'N/A',
+        'Consignee Address': invoice.consignee?.address || 'N/A',
+        'Consignee City': invoice.consignee?.city || 'N/A',
+        'Consignee Pincode': invoice.consignee?.pincode || 'N/A',
+        'Consignee Contact': invoice.consignee?.contact || 'N/A',
+        'Consignee Email': invoice.consignee?.email || 'N/A',
+        'LR Number': invoice.lrNumber || 'N/A',
+        'LR Date': invoice.lrDate || 'N/A',
+        'Vehicle Number': invoice.vehicleNumber || 'N/A',
+        'Transporter': invoice.transporter || 'N/A',
+        'Transporter Mobile': invoice.transportMobile || 'N/A',
+        'Subtotal': `₹${totals.subtotal.toFixed(2)}`,
+        'CGST': invoice.receiver?.gstin?.startsWith('24') ? `₹${totals.cgst.toFixed(2)}` : 'N/A',
+        'SGST': invoice.receiver?.gstin?.startsWith('24') ? `₹${totals.sgst.toFixed(2)}` : 'N/A',
+        'IGST': !invoice.receiver?.gstin?.startsWith('24') ? `₹${totals.igst.toFixed(2)}` : 'N/A',
+        'TCS': invoice.tcsPercent ? `₹${totals.tcs.toFixed(2)}` : 'N/A',
+        'Total': `₹${totals.total.toFixed(2)}`,
+        'Tax Slab': `${invoice.taxSlab || 0}%`,
+        'TCS Percent': `${invoice.tcsPercent || 0}%`,
+        'Items Count': invoice.items?.length || 0,
+        'Items Details': itemsString,
+        'GST Type': invoice.receiver?.gstin?.startsWith('24') ? 'Intra-State' : 'Inter-State',
+        'Extra Notes': invoice.extraNote || 'N/A',
+        'Status': 'Active'
+      };
+    });
+
+    // Create worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 15 }, // Invoice No
+      { wch: 12 }, // Invoice Date
+      { wch: 15 }, // Work Order No
+      { wch: 15 }, // PO Number
+      { wch: 12 }, // PO Date
+      { wch: 25 }, // Company Name
+      { wch: 20 }, // Receiver Name
+      { wch: 20 }, // Receiver GSTIN
+      { wch: 30 }, // Receiver Address
+      { wch: 15 }, // Receiver City
+      { wch: 12 }, // Receiver Pincode
+      { wch: 15 }, // Receiver Contact
+      { wch: 25 }, // Receiver Email
+      { wch: 20 }, // Consignee Name
+      { wch: 20 }, // Consignee GSTIN
+      { wch: 30 }, // Consignee Address
+      { wch: 15 }, // Consignee City
+      { wch: 12 }, // Consignee Pincode
+      { wch: 15 }, // Consignee Contact
+      { wch: 25 }, // Consignee Email
+      { wch: 15 }, // LR Number
+      { wch: 12 }, // LR Date
+      { wch: 15 }, // Vehicle Number
+      { wch: 20 }, // Transporter
+      { wch: 15 }, // Transporter Mobile
+      { wch: 15 }, // Subtotal
+      { wch: 15 }, // CGST
+      { wch: 15 }, // SGST
+      { wch: 15 }, // IGST
+      { wch: 15 }, // TCS
+      { wch: 15 }, // Total
+      { wch: 10 }, // Tax Slab
+      { wch: 10 }, // TCS Percent
+      { wch: 10 }, // Items Count
+      { wch: 50 }, // Items Details
+      { wch: 15 }, // GST Type
+      { wch: 30 }, // Extra Notes
+      { wch: 10 }  // Status
+    ];
+
+    worksheet['!cols'] = columnWidths;
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
-    XLSX.writeFile(workbook, "Invoices.xlsx");
-    toast.success("Exported all invoices to Excel");
+
+    // Use appropriate filename based on whether filtered or all
+    const fileName = debouncedSearch ? "filtered_invoices.xlsx" : "all_invoices.xlsx";
+    XLSX.writeFile(workbook, fileName);
+
+    toast.success(`Exported ${dataToExport.length} invoices with detailed information`);
   };
 
 
@@ -1562,7 +1665,7 @@ const Sales = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            <div className="action-buttons-group">
               <button className="export-all-btn" onClick={handleExportExcel}>
                 <FaFileExcel /> Export All
               </button>

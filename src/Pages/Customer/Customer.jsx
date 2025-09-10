@@ -74,7 +74,9 @@ const Customer = () => {
       return (
         cust.customerName?.toLowerCase().includes(debouncedSearch) ||
         cust.gstNumber?.toLowerCase().includes(debouncedSearch) ||
-        cust.email?.toLowerCase().includes(debouncedSearch)
+        cust.email?.toLowerCase().includes(debouncedSearch) ||
+        cust.companyName?.toLowerCase().includes(debouncedSearch) ||
+        cust.address?.toLowerCase().includes(debouncedSearch)
       );
     });
   }, [debouncedSearch, customers]);
@@ -201,13 +203,16 @@ const Customer = () => {
 
   // Export all customers as Excel
   const exportAllAsExcel = () => {
-    if (customers.length === 0) {
+    // Use filteredCustomers instead of customers
+    const dataToExport = filteredCustomers.length > 0 ? filteredCustomers : customers;
+
+    if (dataToExport.length === 0) {
       toast.warning("No customers to export");
       return;
     }
 
     const worksheet = XLSX.utils.json_to_sheet(
-      customers.map((customer) => ({
+      dataToExport.map((customer) => ({
         Name: customer.customerName,
         "Company Name": customer.companyName,
         "GST No.": customer.gstNumber,
@@ -225,7 +230,10 @@ const Customer = () => {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
-    XLSX.writeFile(workbook, "all_customers.xlsx");
+
+    // Use appropriate filename based on whether filtered or all
+    const fileName = debouncedSearch ? "filtered_customers.xlsx" : "all_customers.xlsx";
+    XLSX.writeFile(workbook, fileName);
   };
 
   // Form initial values
@@ -817,10 +825,7 @@ const Customer = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
-              {/* <button className="export-btn" onClick={exportAsPdf}>
-                <FaFileExport /> Export
-              </button> */}
+            <div className="action-buttons-group">
               <button className="export-all-btn" onClick={exportAllAsExcel}>
                 <FaFileExcel /> Export All
               </button>

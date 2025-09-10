@@ -59,13 +59,15 @@
 }
 
 .low-stock-alert {
-  background: linear-gradient(135deg, #ffecf4 0%, #f9d8e6 100%);
-  border: 1px solid #ffcce0;
+ background: linear-gradient(135deg, #f4ecfc 0%, #e8dcf8 100%);
+ border: 1px solid #d9c6f0;
+ 
 }
 
 .out-of-stock-alert {
-  background: linear-gradient(135deg, #f4ecfc 0%, #e8dcf8 100%);
-  border: 1px solid #d9c6f0;
+  
+   background: linear-gradient(135deg, #ffecf4 0%, #f9d8e6 100%);
+   border: 1px solid #ffcce0;
 }
 
 .alert-section h4 {

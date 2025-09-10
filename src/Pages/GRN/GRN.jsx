@@ -359,27 +359,97 @@ const GRN = () => {
   };
 
   const handleExportExcel = () => {
-    if (grns.length === 0) {
+    // Use filteredGRNs instead of grns when search is applied
+    const dataToExport = filteredGRNs.length > 0 ? filteredGRNs : grns;
+
+    if (dataToExport.length === 0) {
       toast.warn("No GRNs to export");
       return;
     }
 
-    const data = grns.map(grn => ({
-      'GRN No': grn.grnNumber,
-      'Date': grn.grnDate,
-      'Company': grn.companyName,
-      'Contact Person': grn.vendorName,
-      'PO Number': grn.poNumber,
-      'Total': grn.total?.toFixed(2),
-      'GST Type': grn.vendorGST?.startsWith('24') ? 'intra' : 'inter',
-      'Status': 'Received'
-    }));
+    // Create detailed data for export
+    const data = dataToExport.map(grn => {
+      // Format items as a string for easier reading in Excel
+      const itemsString = grn.items?.map(item =>
+        `${item.name || 'N/A'} (Qty: ${item.qty || 0} ${item.unit || ''}, Rate: ₹${item.rate || 0})`
+      ).join('; ') || 'No items';
 
+      // Calculate totals
+      const totals = calculateTotals(
+        grn.items || [],
+        grn.otherCharges || 0,
+        grn.vendorGST || ""
+      );
+
+      return {
+        'GRN Number': grn.grnNumber || 'N/A',
+        'GRN Date': grn.grnDate || 'N/A',
+        'PO Number': grn.poNumber || 'N/A',
+        'PO Date': grn.poDate || 'N/A',
+        'LR Number': grn.lrNumber || 'N/A',
+        'Transporter': grn.transporter || 'N/A',
+        'Vehicle No': grn.vehicleNo || 'N/A',
+        'Company Name': grn.companyName || 'N/A',
+        'Vendor Name': grn.vendorName || 'N/A',
+        'Vendor GST': grn.vendorGST || 'N/A',
+        'Vendor Address': grn.vendorAddress || 'N/A',
+        'Vendor Contact': grn.vendorContact || 'N/A',
+        'Vendor Email': grn.vendorEmail || 'N/A',
+        'Subtotal': `₹${totals.subtotal.toFixed(2)}`,
+        'CGST': grn.vendorGST?.startsWith('24') ? `₹${totals.cgst.toFixed(2)}` : 'N/A',
+        'SGST': grn.vendorGST?.startsWith('24') ? `₹${totals.sgst.toFixed(2)}` : 'N/A',
+        'IGST': !grn.vendorGST?.startsWith('24') ? `₹${totals.igst.toFixed(2)}` : 'N/A',
+        'Other Charges': `₹${Number(grn.otherCharges || 0).toFixed(2)}`,
+        'Total': `₹${totals.total.toFixed(2)}`,
+        'Items Count': grn.items?.length || 0,
+        'Items Details': itemsString,
+        'Comments': grn.comments || 'None',
+        'GST Type': grn.vendorGST?.startsWith('24') ? 'Intra-State' : 'Inter-State',
+        'Status': 'Received'
+      };
+    });
+
+    // Create worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 15 }, // GRN Number
+      { wch: 12 }, // GRN Date
+      { wch: 15 }, // PO Number
+      { wch: 12 }, // PO Date
+      { wch: 15 }, // LR Number
+      { wch: 20 }, // Transporter
+      { wch: 15 }, // Vehicle No
+      { wch: 25 }, // Company Name
+      { wch: 20 }, // Vendor Name
+      { wch: 20 }, // Vendor GST
+      { wch: 30 }, // Vendor Address
+      { wch: 15 }, // Vendor Contact
+      { wch: 25 }, // Vendor Email
+      { wch: 15 }, // Subtotal
+      { wch: 15 }, // CGST
+      { wch: 15 }, // SGST
+      { wch: 15 }, // IGST
+      { wch: 15 }, // Other Charges
+      { wch: 15 }, // Total
+      { wch: 10 }, // Items Count
+      { wch: 50 }, // Items Details
+      { wch: 30 }, // Comments
+      { wch: 15 }, // GST Type
+      { wch: 15 }  // Status
+    ];
+
+    worksheet['!cols'] = columnWidths;
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "GRNs");
-    XLSX.writeFile(workbook, "GRNs.xlsx");
-    toast.success("Exported all GRNs to Excel");
+
+    // Use appropriate filename based on whether filtered or all
+    const fileName = debouncedSearch ? "filtered_grns.xlsx" : "all_grns.xlsx";
+    XLSX.writeFile(workbook, fileName);
+
+    toast.success(`Exported ${dataToExport.length} GRNs with detailed information`);
   };
 
   const handleUpdateGRN = async (updatedGRN) => {
@@ -698,7 +768,7 @@ const GRN = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            <div className="action-buttons-group">
               <button className="export-all-btn" onClick={handleExportExcel}>
                 <FaFileExcel /> Export All
               </button>

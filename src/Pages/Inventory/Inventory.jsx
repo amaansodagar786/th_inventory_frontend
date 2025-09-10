@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Navbar from "../../Components/Sidebar/Navbar";
 import html2pdf from "html2pdf.js";
-import { FaFileExport, FaSearch } from "react-icons/fa";
+import { FaFileExport, FaSearch , FaFilter  } from "react-icons/fa";
 import "./Inventory.scss";
 import axios from "axios";
 
@@ -18,6 +18,8 @@ const Inventory = () => {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [showLoader, setShowLoader] = useState(false);
     const loaderTimeoutRef = useRef(null);
+
+    const [stockFilter, setStockFilter] = useState("all");
 
 
     useEffect(() => {
@@ -53,21 +55,33 @@ const Inventory = () => {
 
     // Filter inventory
     const filteredInventory = useMemo(() => {
-        if (!debouncedSearch) return inventory;
+        let result = inventory;
 
-        return inventory.filter(item => {
-            // Check item fields
-            if (item.itemName?.toLowerCase().includes(debouncedSearch)) return true;
-            if (item.hsnCode?.toLowerCase().includes(debouncedSearch)) return true;
-            if (item.description?.toLowerCase().includes(debouncedSearch)) return true;
+        // Apply stock filter
+        if (stockFilter === "low") {
+            result = result.filter(item => item.currentStock <= item.minimumQty && item.currentStock > 0);
+        } else if (stockFilter === "out") {
+            result = result.filter(item => item.currentStock === 0);
+        }
 
-            // Check status
-            const status = item.currentStock <= item.minimumQty ? "low stock" : "in stock";
-            if (status.includes(debouncedSearch)) return true;
+        // Apply search filter
+        if (debouncedSearch) {
+            result = result.filter(item => {
+                // Check item fields
+                if (item.itemName?.toLowerCase().includes(debouncedSearch)) return true;
+                if (item.hsnCode?.toLowerCase().includes(debouncedSearch)) return true;
+                if (item.description?.toLowerCase().includes(debouncedSearch)) return true;
 
-            return false;
-        });
-    }, [debouncedSearch, inventory]);
+                // Check status
+                const status = item.currentStock <= item.minimumQty ? "low stock" : "in stock";
+                if (status.includes(debouncedSearch)) return true;
+
+                return false;
+            });
+        }
+
+        return result;
+    }, [debouncedSearch, inventory, stockFilter]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -135,9 +149,100 @@ const Inventory = () => {
     };
 
     const handleExport = () => {
-        const element = document.getElementById("inventory-table");
+        // Create a styled table for PDF export
+        const element = document.createElement("div");
+        element.style.fontFamily = "Arial, sans-serif";
+        element.style.padding = "20px";
+
+        // Add title
+        const title = document.createElement("h2");
+        title.textContent = "Inventory Report";
+        title.style.textAlign = "center";
+        title.style.color = "#3f3f91";
+        title.style.marginBottom = "20px";
+        element.appendChild(title);
+
+        // Create table with styles
+        const table = document.createElement("table");
+        table.style.width = "100%";
+        table.style.borderCollapse = "collapse";
+        table.style.border = "1px solid #ddd";
+
+        // Add table headers
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        headerRow.style.backgroundColor = "#f5f6fa";
+
+        ["Item", "HSN", "Units", "Description", "Avg Price", "Min Qty", "Current Stock", "In Use", "Status"].forEach(headerText => {
+            const th = document.createElement("th");
+            th.textContent = headerText;
+            th.style.padding = "10px";
+            th.style.border = "1px solid #ddd";
+            th.style.fontWeight = "bold";
+            th.style.color = "#3f3f91";
+            headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Add table body
+        const tbody = document.createElement("tbody");
+
+        filteredInventory.forEach(item => {
+            const row = document.createElement("tr");
+
+            [
+                item.itemName,
+                item.hsnCode || "-",
+                item.unit || "-",
+                item.description || "-",
+                `₹${item.averagePrice?.toFixed(2) || "0.00"}`,
+                item.minimumQty,
+                item.currentStock,
+                item.inUse,
+                item.currentStock <= item.minimumQty ? "Low Stock" : "In Stock"
+            ].forEach(cellText => {
+                const td = document.createElement("td");
+                td.textContent = cellText;
+                td.style.padding = "8px";
+                td.style.border = "1px solid #ddd";
+
+                // Add color for status
+                if (cellText === "Low Stock") {
+                    td.style.color = "#d32f2f";
+                    td.style.fontWeight = "500";
+                } else if (cellText === "In Stock") {
+                    td.style.color = "#388e3c";
+                }
+
+                row.appendChild(td);
+            });
+
+            tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        element.appendChild(table);
+
+        // Add filter info
+        const filterInfo = document.createElement("p");
+        filterInfo.textContent = `Filters applied: ${stockFilter !== "all" ? `Stock: ${stockFilter === "low" ? "Low Stock" : "Out of Stock"}` : "All Stock"}${debouncedSearch ? `, Search: "${debouncedSearch}"` : ""}`;
+        filterInfo.style.marginTop = "15px";
+        filterInfo.style.fontSize = "12px";
+        filterInfo.style.color = "#666";
+        element.appendChild(filterInfo);
+
+        // Add export date
+        const exportDate = document.createElement("p");
+        exportDate.textContent = `Exported on: ${new Date().toLocaleString()}`;
+        exportDate.style.marginTop = "5px";
+        exportDate.style.fontSize = "12px";
+        exportDate.style.color = "#666";
+        element.appendChild(exportDate);
+
         html2pdf().from(element).set({
-            margin: 1,
+            margin: 10,
             filename: "Inventory_Report.pdf",
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: { scale: 2 },
@@ -161,6 +266,23 @@ const Inventory = () => {
                 <div className="page-header">
                     <h2>Inventory</h2>
                     <div className="right-section">
+
+
+                        <div className="filter-container">
+                            <div className="filter-with-icon">
+                                <FaFilter className="filter-icon" />
+                                <select
+                                    value={stockFilter}
+                                    onChange={(e) => setStockFilter(e.target.value)}
+                                    className="stock-filter"
+                                >
+                                    <option value="all">All Stock</option>
+                                    <option value="low">Low Stock</option>
+                                    <option value="out">Out of Stock</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div className="search-container">
                             <FaSearch className="search-icon" />
                             <input
@@ -170,8 +292,8 @@ const Inventory = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <div className="page-actions">
-                            <button className="export-btn" onClick={handleExport}>
+                        <div className="action-buttons-group">
+                            <button className="export-all-btn" onClick={handleExport}>
                                 <FaFileExport /> Export
                             </button>
                         </div>

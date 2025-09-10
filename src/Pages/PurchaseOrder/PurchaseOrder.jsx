@@ -148,6 +148,7 @@ const PurchaseOrder = () => {
             if (order.poNumber?.toLowerCase().includes(debouncedSearch)) return true;
             if (order.date?.toLowerCase().includes(debouncedSearch)) return true;
             if (order.vendorName?.toLowerCase().includes(debouncedSearch)) return true;
+            if (order.companyName?.toLowerCase().includes(debouncedSearch)) return true;
             if (order.vendorGST?.toLowerCase().includes(debouncedSearch)) return true;
             if (order.vendorAddress?.toLowerCase().includes(debouncedSearch)) return true;
             if (order.vendorContact?.toLowerCase().includes(debouncedSearch)) return true;
@@ -189,7 +190,7 @@ const PurchaseOrder = () => {
         const selectedCompanyName = e.target.value;
         const selectedVendor = vendors.find(v => v.companyName === selectedCompanyName);
         if (selectedVendor) {
-            
+
             setFieldValue("companyName", selectedVendor.companyName);
             setFieldValue("vendorId", selectedVendor.vendorId);
             setFieldValue("vendorName", selectedVendor.vendorName);
@@ -314,23 +315,102 @@ const PurchaseOrder = () => {
     };
 
     const handleExportExcel = () => {
-        if (orders.length === 0) {
+        // Use filteredOrders instead of orders when search is applied
+        const dataToExport = filteredOrders.length > 0 ? filteredOrders : orders;
+
+        if (dataToExport.length === 0) {
             toast.warn("No purchase orders to export");
             return;
         }
-        const data = orders.map(order => ({
-            'PO No': order.poNumber,
-            'Date': order.date,
-            'Vendor': order.vendorName,
-            'Total': order.total?.toFixed(2),
-            'GST Type': order.gstType || (order.vendorGST?.startsWith('24') ? 'intra' : 'inter'),
-            'Tax Slab': order.taxSlab ? `${order.taxSlab}%` : '18%' // ADDED: Tax slab in export
-        }));
+
+        // Create detailed data for export
+        const data = dataToExport.map(order => {
+            // Format items as a string for easier reading in Excel
+            const itemsString = order.items?.map(item =>
+                `${item.name || 'N/A'} (Qty: ${item.qty || 0} ${item.unit || ''}, Rate: ₹${item.rate || 0})`
+            ).join('; ') || 'No items';
+
+            // Calculate totals (in case they're not already in the order object)
+            const totals = calculateTotals(
+                order.items || [],
+                order.discount || 0,
+                order.vendorGST,
+                order.taxSlab || 18
+            );
+
+            return {
+                'PO Number': order.poNumber || 'N/A',
+                'Date': order.date || 'N/A',
+                'Company Name': order.companyName || 'N/A',
+                'Vendor Name': order.vendorName || 'N/A',
+                'Vendor GST': order.vendorGST || 'N/A',
+                'Vendor Address': order.vendorAddress || 'N/A',
+                'Vendor Contact': order.vendorContact || 'N/A',
+                'Vendor Email': order.vendorEmail || 'N/A',
+                'Shipping Company': order.shipCompany || 'N/A',
+                'Shipping Contact': order.shipName || 'N/A',
+                'Shipping Phone': order.shipPhone || 'N/A',
+                'Consignee Address': order.consigneeAddress || 'N/A',
+                'Delivery Address': order.deliveryAddress || 'N/A',
+                'Tax Slab': order.taxSlab ? `${order.taxSlab}%` : '18%',
+                'Discount': `${order.discount || 0}%`,
+                'Subtotal': `₹${totals.subtotal.toFixed(2)}`,
+                'Discount Amount': `₹${totals.discountAmount.toFixed(2)}`,
+                'CGST': order.vendorGST?.startsWith('24') ? `₹${totals.cgst.toFixed(2)}` : 'N/A',
+                'SGST': order.vendorGST?.startsWith('24') ? `₹${totals.sgst.toFixed(2)}` : 'N/A',
+                'IGST': !order.vendorGST?.startsWith('24') ? `₹${totals.igst.toFixed(2)}` : 'N/A',
+                'Total': `₹${totals.total.toFixed(2)}`,
+                'Items Count': order.items?.length || 0,
+                'Items Details': itemsString,
+                'Extra Notes': order.extraNote || 'None',
+                'Terms Included': order.includeTerms ? 'Yes' : 'No',
+                'GST Type': order.vendorGST?.startsWith('24') ? 'Intra-State' : 'Inter-State'
+            };
+        });
+
+        // Create worksheet
         const worksheet = XLSX.utils.json_to_sheet(data);
+
+        // Set column widths for better readability
+        const columnWidths = [
+            { wch: 15 }, // PO Number
+            { wch: 12 }, // Date
+            { wch: 25 }, // Company Name
+            { wch: 20 }, // Vendor Name
+            { wch: 20 }, // Vendor GST
+            { wch: 30 }, // Vendor Address
+            { wch: 15 }, // Vendor Contact
+            { wch: 25 }, // Vendor Email
+            { wch: 25 }, // Shipping Company
+            { wch: 20 }, // Shipping Contact
+            { wch: 15 }, // Shipping Phone
+            { wch: 30 }, // Consignee Address
+            { wch: 30 }, // Delivery Address
+            { wch: 10 }, // Tax Slab
+            { wch: 10 }, // Discount
+            { wch: 15 }, // Subtotal
+            { wch: 15 }, // Discount Amount
+            { wch: 15 }, // CGST
+            { wch: 15 }, // SGST
+            { wch: 15 }, // IGST
+            { wch: 15 }, // Total
+            { wch: 10 }, // Items Count
+            { wch: 50 }, // Items Details
+            { wch: 30 }, // Extra Notes
+            { wch: 15 }, // Terms Included
+            { wch: 15 }  // GST Type
+        ];
+
+        worksheet['!cols'] = columnWidths;
+
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "PurchaseOrders");
-        XLSX.writeFile(workbook, "PurchaseOrders.xlsx");
-        toast.success("Exported all purchase orders to Excel");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Purchase Orders");
+
+        // Use appropriate filename based on whether filtered or all
+        const fileName = debouncedSearch ? "filtered_purchase_orders.xlsx" : "all_purchase_orders.xlsx";
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success(`Exported ${dataToExport.length} purchase orders with detailed information`);
     };
 
     const handleUpdatePO = async (updatedPO) => {
@@ -977,7 +1057,7 @@ const PurchaseOrder = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <div className="page-actions">
+                        <div className="action-buttons-group">
                             <button className="export-all-btn" onClick={handleExportExcel}>
                                 <FaFileExcel /> Export All
                             </button>

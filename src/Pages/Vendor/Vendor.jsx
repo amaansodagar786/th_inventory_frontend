@@ -62,6 +62,7 @@ const Vendor = () => {
       v.gstNumber?.toLowerCase().includes(debouncedSearch) ||
       v.email?.toLowerCase().includes(debouncedSearch) ||
       v.contactNumber?.toLowerCase().includes(debouncedSearch) ||
+      v.companyName?.toLowerCase().includes(debouncedSearch) ||
       v.address?.toLowerCase().includes(debouncedSearch)
     );
   }, [debouncedSearch, vendors]);
@@ -254,12 +255,17 @@ const Vendor = () => {
   };
 
   // Export All Excel
+  // Export All Excel - Updated to export filtered data when search is applied
   const exportAllAsExcel = () => {
-    if (vendors.length === 0) {
+    // Use filteredVendors instead of vendors when search is applied
+    const dataToExport = filteredVendors.length > 0 ? filteredVendors : vendors;
+
+    if (dataToExport.length === 0) {
       toast.warning("No vendors to export");
       return;
     }
-    const data = vendors.map((vendor) => ({
+
+    const data = dataToExport.map((vendor) => ({
       "Vendor Name": vendor.vendorName,
       "Company Name": vendor.companyName,
       "GST Number": vendor.gstNumber,
@@ -275,7 +281,10 @@ const Vendor = () => {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Vendors");
-    XLSX.writeFile(workbook, "all_vendors.xlsx");
+
+    // Use appropriate filename based on whether filtered or all
+    const fileName = debouncedSearch ? "filtered_vendors.xlsx" : "all_vendors.xlsx";
+    XLSX.writeFile(workbook, fileName);
   };
 
   // Add these functions to your Vendor component
@@ -688,7 +697,7 @@ const Vendor = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            <div className="action-buttons-group">
               <button className="export-all-btn" onClick={exportAllAsExcel}>
                 <FaFileExcel /> Export All
               </button>

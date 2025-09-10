@@ -179,26 +179,32 @@ const Items = () => {
     html2pdf().from(content).set(opt).save();
   };
 
-  const exportAllAsExcel = () => {
-    if (items.length === 0) {
-      toast.warning("No items to export");
-      return;
-    }
+const exportAllAsExcel = () => {
+  // Use filteredItems instead of items when search is applied
+  const dataToExport = filteredItems.length > 0 ? filteredItems : items;
+  
+  if (dataToExport.length === 0) {
+    toast.warning("No items to export");
+    return;
+  }
 
-    const data = items.map(item => ({
-      "Item Name": item.itemName,
-      "Minimum Qty": item.minimumQty,
-      "HSN Code": item.hsnCode,
-      "Unit": item.unit,
-      "Tax Slab": `${item.taxSlab}%`,
-      "Description": item.description
-    }));
+  const data = dataToExport.map(item => ({
+    "Item Name": item.itemName,
+    "Minimum Qty": item.minimumQty,
+    "HSN Code": item.hsnCode,
+    "Unit": item.unit,
+    "Tax Slab": `${item.taxSlab}%`,
+    "Description": item.description
+  }));
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
-    XLSX.writeFile(workbook, "all_items.xlsx");
-  };
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
+  
+  // Use appropriate filename based on whether filtered or all
+  const fileName = debouncedSearch ? "filtered_items.xlsx" : "all_items.xlsx";
+  XLSX.writeFile(workbook, fileName);
+};
 
   const handleUpdateItem = async (updatedItem) => {
     try {
@@ -486,7 +492,7 @@ const Items = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            <div className="action-buttons-group">
               {/* <button className="export-btn" onClick={exportSelectedAsPDF}>
                 <FaFileExport /> Export
               </button> */}

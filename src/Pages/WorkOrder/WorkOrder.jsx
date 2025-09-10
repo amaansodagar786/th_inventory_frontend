@@ -204,7 +204,7 @@ const WorkOrder = () => {
         poNumber: "",
         poDate: "",
         receiver: {
-            customerId: "", 
+            customerId: "",
             companyName: "",
             name: "",
             gstin: "",
@@ -381,26 +381,93 @@ const WorkOrder = () => {
             .save();
     };
 
+    // Export Excel - Updated to export filtered data when search is applied
     const handleExportExcel = () => {
-        if (workOrders.length === 0) {
+        // Use filteredWorkOrders instead of workOrders when search is applied
+        const dataToExport = filteredWorkOrders.length > 0 ? filteredWorkOrders : workOrders;
+
+        if (dataToExport.length === 0) {
             toast.warn("No work orders to export");
             return;
         }
 
-        const data = workOrders.map(order => ({
-            'Work Order No': order.workOrderNumber,
-            'Date': order.workOrderDate,
-            'Company': order.receiver?.companyName || 'N/A',
-            'Receiver': order.receiver?.name || 'N/A',
-            'Total': order.total?.toFixed(2),
-            'PO Number': order.poNumber || 'N/A',
-        }));
+        // Create detailed data for export
+        const data = dataToExport.map((order) => {
+            // Format items as a string for easier reading in Excel
+            const itemsString = order.items?.map(item =>
+                `${item.name || 'N/A'} (Qty: ${item.quantity || 0} ${item.units || ''})`
+            ).join('; ') || 'No items';
 
+            // Calculate totals
+            const totals = calculateTotals(
+                order.items || [],
+                0,
+                order.receiver?.gstin || ""
+            );
+
+            return {
+                'Work Order No': order.workOrderNumber || 'N/A',
+                'Work Order Date': order.workOrderDate || 'N/A',
+                'PO Number': order.poNumber || 'N/A',
+                'PO Date': order.poDate || 'N/A',
+                'Company Name': order.receiver?.companyName || 'N/A',
+                'Receiver Name': order.receiver?.name || 'N/A',
+                'Receiver GSTIN': order.receiver?.gstin || 'N/A',
+                'Receiver Address': order.receiver?.address || 'N/A',
+                'Receiver City': order.receiver?.city || 'N/A',
+                'Receiver Pincode': order.receiver?.pincode || 'N/A',
+                'Receiver Contact': order.receiver?.contact || 'N/A',
+                'Receiver Email': order.receiver?.email || 'N/A',
+                'Subtotal': `₹${totals.subtotal.toFixed(2)}`,
+                'CGST': order.receiver?.gstin?.startsWith('24') ? `₹${totals.cgst.toFixed(2)}` : 'N/A',
+                'SGST': order.receiver?.gstin?.startsWith('24') ? `₹${totals.sgst.toFixed(2)}` : 'N/A',
+                'IGST': !order.receiver?.gstin?.startsWith('24') ? `₹${totals.igst.toFixed(2)}` : 'N/A',
+                'Total': `₹${totals.total.toFixed(2)}`,
+                'Items Count': order.items?.length || 0,
+                'Items Details': itemsString,
+                'GST Type': order.receiver?.gstin?.startsWith('24') ? 'Intra-State' : 'Inter-State',
+                'Status': 'Active'
+            };
+        });
+
+        // Create worksheet
         const worksheet = XLSX.utils.json_to_sheet(data);
+
+        // Set column widths for better readability
+        const columnWidths = [
+            { wch: 15 }, // Work Order No
+            { wch: 12 }, // Work Order Date
+            { wch: 15 }, // PO Number
+            { wch: 12 }, // PO Date
+            { wch: 25 }, // Company Name
+            { wch: 20 }, // Receiver Name
+            { wch: 20 }, // Receiver GSTIN
+            { wch: 30 }, // Receiver Address
+            { wch: 15 }, // Receiver City
+            { wch: 12 }, // Receiver Pincode
+            { wch: 15 }, // Receiver Contact
+            { wch: 25 }, // Receiver Email
+            { wch: 15 }, // Subtotal
+            { wch: 15 }, // CGST
+            { wch: 15 }, // SGST
+            { wch: 15 }, // IGST
+            { wch: 15 }, // Total
+            { wch: 10 }, // Items Count
+            { wch: 50 }, // Items Details
+            { wch: 15 }, // GST Type
+            { wch: 10 }  // Status
+        ];
+
+        worksheet['!cols'] = columnWidths;
+
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "WorkOrders");
-        XLSX.writeFile(workbook, "WorkOrders.xlsx");
-        toast.success("Exported all work orders to Excel");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Work Orders");
+
+        // Use appropriate filename based on whether filtered or all
+        const fileName = debouncedSearch ? "filtered_work_orders.xlsx" : "all_work_orders.xlsx";
+        XLSX.writeFile(workbook, fileName);
+
+        toast.success(`Exported ${dataToExport.length} work orders with detailed information`);
     };
 
     // Add these functions to your WorkOrder component
@@ -952,7 +1019,7 @@ const WorkOrder = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <div className="page-actions">
+                        <div className="action-buttons-group">
                             <button className="export-all-btn" onClick={handleExportExcel}>
                                 <FaFileExcel /> Export All
                             </button>

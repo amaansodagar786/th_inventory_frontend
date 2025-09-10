@@ -216,38 +216,60 @@ const Bom = () => {
   };
 
   // Export Excel
+  // Export Excel - Updated to export filtered data when search is applied
   const handleExportExcel = () => {
-    if (boms.length === 0) {
+    // Use filteredBOMs instead of boms when search is applied
+    const dataToExport = filteredBOMs.length > 0 ? filteredBOMs : boms;
+
+    if (dataToExport.length === 0) {
       toast.warn("No BOMs to export");
       return;
     }
 
-    const data = boms.map((bom) => ({
-      "Product Name": bom.productName,
-      Description: bom.description,
-      "HSN Code": bom.hsnCode,
-      "Items Count": bom.items?.length || 0,
-      Components:
-        bom.items?.map((item) => `${item.itemName} (${item.requiredQty})`).join(", ") ||
-        "None",
-      "Created At": new Date(bom.createdAt).toLocaleDateString(),
-    }));
+    // Create detailed data for export
+    const data = dataToExport.map((bom) => {
+      // Format items as a string for easier reading in Excel
+      const itemsString = bom.items?.map(item =>
+        `${item.itemName || 'N/A'} (Qty: ${item.requiredQty || 0})`
+      ).join('; ') || 'No items';
 
+      return {
+        'BOM ID': bom.bomId || 'N/A',
+        'Product Name': bom.productName || 'N/A',
+        'Description': bom.description || 'N/A',
+        'HSN Code': bom.hsnCode || 'N/A',
+        'Total Items': bom.items?.length || 0,
+        'Items Details': itemsString,
+        'Created Date': new Date(bom.createdAt).toLocaleDateString(),
+        'Status': 'Active'
+      };
+    });
+
+    // Create worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 15 }, // BOM ID
+      { wch: 25 }, // Product Name
+      { wch: 30 }, // Description
+      { wch: 15 }, // HSN Code
+      { wch: 12 }, // Total Items
+      { wch: 50 }, // Items Details
+      { wch: 15 }, // Created Date
+      { wch: 10 }  // Status
+    ];
+
+    worksheet['!cols'] = columnWidths;
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "BOMs");
 
-    worksheet["!cols"] = [
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 40 },
-      { wch: 15 },
-    ];
+    // Use appropriate filename based on whether filtered or all
+    const fileName = debouncedSearch ? "filtered_boms.xlsx" : "all_boms.xlsx";
+    XLSX.writeFile(workbook, fileName);
 
-    XLSX.writeFile(workbook, "BOMs.xlsx");
-    toast.success("Exported all BOMs to Excel");
+    toast.success(`Exported ${dataToExport.length} BOMs with detailed information`);
   };
 
   // Add update and delete functions
@@ -595,7 +617,7 @@ const Bom = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="page-actions">
+            <div className="action-buttons-group">
               <button className="export-all-btn" onClick={handleExportExcel}>
                 <FaFileExcel /> Export All
               </button>
