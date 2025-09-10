@@ -26,7 +26,7 @@ const WorkOrderPrint = ({ workOrder }) => {
             <div className="main-content">
                 <div className="header">
                     <div className="header-left">
-                        <p><strong>GSTIN:</strong> 24AAAFF2996A1ZS</p>
+                        <p><strong>GSTIN:</strong> 24AAAFF2996A1..</p>
                     </div>
                     <div className="header-middle">
                         <h2>WORK ORDER</h2>

@@ -1174,7 +1174,7 @@ const PurchaseOrder = () => {
                                             <div className="form-group-row">
                                                 <div className="field-wrapper">
                                                     <label>Company Name</label>
-                                                    <Field name="shipCompany" readOnly value="Ferro Tube And Forge Industry" />
+                                                    <Field name="shipCompany" readOnly value="Techorses" />
                                                 </div>
                                                 <div className="field-wrapper">
                                                     <label>Contact Person</label>

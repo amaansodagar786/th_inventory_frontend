@@ -31,7 +31,7 @@ const GRNPrint = ({ grn }) => {
 
     return (
         <div className="grn-print" id="grn-pdf">
-            <div className="top-header">GSTIN: 24AAAFF2996A1ZS</div>
+            <div className="top-header">GSTIN: 24AAAFF2996A1...</div>
             <h2 className="title">GOODS RECEIVED NOTE (GRN)</h2>
 
             <div className="header-grid">
@@ -105,7 +105,7 @@ const GRNPrint = ({ grn }) => {
                 </div>
 
                 <div className="footer-box">
-                    <p className="right">For Ferro Tube & Forge Industries</p>
+                    <p className="right">For Techorses</p>
                     <p className="right"><strong>Authorised Signatory</strong></p>
                     <p className="left note">If you have any questions about this GRN, please contact</p>
                 </div>

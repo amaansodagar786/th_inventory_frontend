@@ -17,15 +17,15 @@ const PurchaseOrderPrint = ({ po }) => {
         {/* Company GST and LUT details - same style as sales */}
         <div className="company-details">
           <div className="left-details">
-            <p><strong>GSTIN:</strong> 24AAAFF2996A1Z6</p>
+            <p><strong>GSTIN:</strong> 24AAAFF2996A1..</p>
             <p><strong>State:</strong> Gujarat, Code: 24</p>
-            <p><strong>PAN No:</strong> AAAFF2996A</p>
+            <p><strong>PAN No:</strong> AAAFF299..</p>
           </div>
           <div className="middle-details">
             <h3>PURCHASE ORDER</h3>
           </div>
           <div className="right-details">
-            <p><strong>LUT ARN No:</strong> AD240224050202C</p>
+            <p><strong>LUT ARN No:</strong> AD24022405020..</p>
             <p><strong>From:</strong> 01/04/2025 <strong>To:</strong> 31/03/2026</p>
           </div>
         </div>
@@ -51,7 +51,7 @@ const PurchaseOrderPrint = ({ po }) => {
           <div className="party-card">
             <h3>Shipping Details:</h3>
             <p><strong>{po.shipName || po.vendorName}</strong></p>
-            <p>{po.deliveryAddress || "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)"}</p>
+            <p>{po.deliveryAddress || "Vadodara -Gujarat (India)"}</p>
             <p>Contact: {po.shipPhone || po.vendorContact}</p>
             {po.shipCompany && <p>Company: {po.shipCompany}</p>}
           </div>
@@ -161,7 +161,7 @@ const PurchaseOrderPrint = ({ po }) => {
 
           {/* Signature on the right */}
           <div className="signature-box">
-            <p>For Ferro Tube & Forge Industries</p>
+            <p>For Techorses</p>
             <div className="signature-line"></div>
             <p>Authorised Signatory</p>
           </div>
