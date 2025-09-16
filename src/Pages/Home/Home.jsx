@@ -8,6 +8,7 @@ import {
   FiAlertTriangle,
   FiCheckCircle,
   FiClock,
+  FiPlusCircle,
 } from "react-icons/fi";
 import {
   BarChart,
@@ -23,6 +24,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import "./Home.css";
+import { useNavigate } from "react-router-dom";
+
 
 const Home = () => {
   const [salesData, setSalesData] = useState([]);
@@ -34,9 +37,48 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [showLowStockModal, setShowLowStockModal] = useState(false);
+  const [showOutOfStockModal, setShowOutOfStockModal] = useState(false);
+  const [lowStockItems, setLowStockItems] = useState([]);
+  const [outOfStockItems, setOutOfStockItems] = useState([]);
+  const [itemsToShow, setItemsToShow] = useState(6);
+
+  const navigate = useNavigate();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (showLowStockModal || showOutOfStockModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+
+    // Cleanup on component unmount
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showLowStockModal, showOutOfStockModal]);
+
+
+  // Add this function to handle ordering items
+  const handleOrderItem = (item) => {
+    // Store the complete item data in localStorage
+    localStorage.setItem('preSelectedItem', JSON.stringify({
+      itemName: item.itemName,
+      description: item.description || "",
+      hsnCode: item.hsnCode || "",
+      unit: item.unit || "",
+      itemId: item.itemId || "",
+      rate: item.rate || 0,
+      minimumQty: item.minimumQty || 0
+    }));
+
+    // Navigate to Purchase Order page
+    navigate('/purchase-order');
+  };
 
   // Enhanced data processing with proper date handling
   const processChartData = (data, type) => {
@@ -143,6 +185,19 @@ const Home = () => {
     { inStock: 0, lowStock: 0, outOfStock: 0 }
   );
 
+
+  useEffect(() => {
+    const lowStock = inventoryData.filter(
+      item => item.currentStock > 0 && item.currentStock <= item.minimumQty
+    );
+    setLowStockItems(lowStock);
+  }, [inventoryData]);
+
+  useEffect(() => {
+    const outOfStock = inventoryData.filter(item => item.currentStock <= 0);
+    setOutOfStockItems(outOfStock);
+  }, [inventoryData]);
+
   if (loading) {
     return <div className="loading">Loading dashboard...</div>;
   }
@@ -156,47 +211,32 @@ const Home = () => {
       <Navbar>
         <div className="dashboard-container">
           {/* Inventory Alerts */}
+          {/* Inventory Alerts */}
           <div className="inventory-alerts">
             <h3>Inventory Alerts</h3>
             <div className="alert-grid">
-              <div className="alert-section low-stock-alert">
+              <div
+                className="alert-section low-stock-alert clickable-alert"
+                onClick={() => setShowLowStockModal(true)}
+              >
                 <h4>
                   <FiAlertTriangle className="icon-warning" /> Low Stock
                 </h4>
-                <ul>
-                  {inventoryData
-                    .filter(item => item.currentStock > 0 && item.currentStock <= item.minimumQty)
-                    .slice(0, 5)
-                    .map(item => (
-                      <li key={item.inventoryId}>
-                        <span>{item.itemName}</span> :
-                        <span> {item.currentStock} left (min: {item.minimumQty})</span>
-                      </li>
-                    ))}
-                  {inventoryData.filter(item => item.currentStock > 0 && item.currentStock <= item.minimumQty).length === 0 && (
-                    <li>No low stock items</li>
-                  )}
-                </ul>
+                <div className="alert-count">
+                  {lowStockItems.length} items need attention
+                </div>
               </div>
 
-              <div className="alert-section out-of-stock-alert">
+              <div
+                className="alert-section out-of-stock-alert clickable-alert"
+                onClick={() => setShowOutOfStockModal(true)}
+              >
                 <h4>
                   <FiAlertTriangle className="icon-danger" /> Out of Stock
                 </h4>
-                <ul>
-                  {inventoryData
-                    .filter(item => item.currentStock <= 0)
-                    .slice(0, 5)
-                    .map(item => (
-                      <li key={item.inventoryId}>
-                        <span>{item.itemName}</span>
-                        {/* <span>Out of stock</span>  */}
-                      </li>
-                    ))}
-                  {inventoryData.filter(item => item.currentStock <= 0).length === 0 && (
-                    <li>No out of stock items</li>
-                  )}
-                </ul>
+                <div className="alert-count">
+                  {outOfStockItems.length} items unavailable
+                </div>
               </div>
             </div>
           </div>
@@ -369,6 +409,114 @@ const Home = () => {
           </div>
         </div>
       </Navbar>
+
+      {/* Low Stock Modal */}
+      {showLowStockModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowLowStockModal(false);
+          setItemsToShow(6);
+          document.body.classList.remove('modal-open');
+        }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <FiAlertTriangle className="icon-warning" /> Low Stock Items
+              </h3>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowLowStockModal(false);
+                  setItemsToShow(6);
+                  document.body.classList.remove('modal-open');
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="inventory-list">
+                {lowStockItems.slice(0, itemsToShow).map(item => (
+                  <div key={item.inventoryId} className="inventory-item">
+                    <span className="item-name">{item.itemName}</span>
+                    <span className="item-stock">
+                      {item.currentStock} left (min: {item.minimumQty})
+                    </span>
+                    <FiPlusCircle
+                      className="order-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOrderItem(item);
+                      }}
+                      title="Create Purchase Order for this item"
+                    />
+                  </div>
+                ))}
+              </div>
+              {itemsToShow < lowStockItems.length && (
+                <button
+                  className="load-more-btn"
+                  onClick={() => setItemsToShow(prev => prev + 6)}
+                >
+                  Load More
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Out of Stock Modal */}
+      {showOutOfStockModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowOutOfStockModal(false);
+          setItemsToShow(6);
+          document.body.classList.remove('modal-open');
+        }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <FiAlertTriangle className="icon-danger" /> Out of Stock Items
+              </h3>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowOutOfStockModal(false);
+                  setItemsToShow(6);
+                  document.body.classList.remove('modal-open');
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="inventory-list">
+                {outOfStockItems.slice(0, itemsToShow).map(item => (
+                  <div key={item.inventoryId} className="inventory-item">
+                    <span className="item-name">{item.itemName}</span>
+                    <span className="item-status">Out of stock</span>
+                    <FiPlusCircle
+                      className="order-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOrderItem(item);
+                      }}
+                      title="Create Purchase Order for this item"
+                    />
+                  </div>
+                ))}
+              </div>
+              {itemsToShow < outOfStockItems.length && (
+                <button
+                  className="load-more-btn"
+                  onClick={() => setItemsToShow(prev => prev + 6)}
+                >
+                  Load More
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

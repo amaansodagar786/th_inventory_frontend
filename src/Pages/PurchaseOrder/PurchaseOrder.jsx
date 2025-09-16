@@ -46,6 +46,83 @@ const PurchaseOrder = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(11);
 
+    // const [preSelectedItem, setPreSelectedItem] = useState(null); 
+
+
+    // Add this useEffect right after the component declaration
+    useEffect(() => {
+        const checkForPreSelectedItem = () => {
+            const preSelectedItem = localStorage.getItem('preSelectedItem');
+            if (preSelectedItem) {
+                try {
+                    // Open the form automatically when we have a pre-selected item
+                    setShowForm(true);
+                } catch (error) {
+                    console.error("Error checking pre-selected item:", error);
+                    localStorage.removeItem('preSelectedItem');
+                }
+            }
+        };
+
+        checkForPreSelectedItem();
+    }, []);
+
+    // Update the getInitialValues function to remove the setShowForm call
+    const getInitialValues = () => {
+        const preSelectedItem = localStorage.getItem('preSelectedItem');
+        let initialItems = [{ name: "", description: "", hsn: "", qty: "", rate: "", unit: "", itemId: "" }];
+
+        if (preSelectedItem) {
+            try {
+                const item = JSON.parse(preSelectedItem);
+
+                // Create the initial item with the pre-selected data
+                initialItems = [{
+                    name: item.itemName || "",
+                    description: item.description || "",
+                    hsn: item.hsnCode || "",
+                    unit: item.unit || "",
+                    itemId: item.itemId || "",
+                    rate: item.rate || "",
+                    qty: item.qty || "", 
+                }];
+
+                // Clear the stored item AFTER we've used it
+                localStorage.removeItem('preSelectedItem');
+            } catch (error) {
+                console.error("Error parsing pre-selected item:", error);
+                localStorage.removeItem('preSelectedItem');
+            }
+        }
+
+        return {
+            ownerGST: "24AAAFF2996A1ZS",
+            ownerPAN: "AAAFF2996A",
+            companyName: "",
+            vendorId: "",
+            vendorName: "",
+            vendorGST: "",
+            vendorAddress: "",
+            vendorContact: "",
+            vendorEmail: "",
+            shipName: "",
+            shipCompany: "Ferro Tube And Forge Industries",
+            shipPhone: "",
+            consigneeAddress: CONSIGNEE_ADDRESS,
+            deliveryAddress: DELIVERY_ADDRESS,
+            extraNote: "",
+            includeTerms: false,
+            poNumber: "",
+            date: new Date().toISOString().slice(0, 10),
+            discount: 0,
+            taxSlab: "",
+            items: initialItems,
+        };
+    };
+
+
+
+
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
@@ -1464,13 +1541,16 @@ const PurchaseOrder = () => {
                 {showForm && (
                     <div className="form-container premium">
                         <Formik
-                            initialValues={initialValues}
+                            initialValues={getInitialValues()}
                             validationSchema={validationSchema}
                             validateOnBlur={false}
                             validateOnChange={false}
                             onSubmit={handleSubmit}
                         >
                             {({ errors, values, setFieldValue, validateForm, submitCount }) => {
+
+
+
                                 useEffect(() => {
                                     if (submitCount > 0 && Object.keys(errors).length > 0) {
                                         Object.entries(errors).forEach(([field, error]) => {
