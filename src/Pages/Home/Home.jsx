@@ -190,7 +190,7 @@ const Home = () => {
                     .map(item => (
                       <li key={item.inventoryId}>
                         <span>{item.itemName}</span>
-                        <span>Out of stock</span>
+                        {/* <span>Out of stock</span>  */}
                       </li>
                     ))}
                   {inventoryData.filter(item => item.currentStock <= 0).length === 0 && (

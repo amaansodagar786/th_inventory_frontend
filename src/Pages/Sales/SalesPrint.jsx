@@ -69,28 +69,29 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
     packetForwarding: packetForwardingPercent ? (subtotal * packetForwardingPercent) / 100 : 0,
     freight: freightPercent ? (subtotal * freightPercent) / 100 : 0,
     inspection: inspectionPercent ? (subtotal * inspectionPercent) / 100 : 0,
-    tcs: tcsPercent ? (subtotal * tcsPercent) / 100 : 0
+    // ✅ CORRECT: Calculate TCS on (subtotal + GST)
+    tcs: tcsPercent ? ((subtotal + (cgst || 0) + (sgst || 0) + (igst || 0)) * tcsPercent / 100) : 0
   };
 
   return (
     <div id="sales-pdf">
-      
+
 
       {/* Main content container with page break controls */}
       <div className="main-content">
         {/* Company GST and LUT details */}
         <div className="company-details">
           <div className="left-details">
-            <p><strong>GSTIN:</strong> 24AAAFF2996A1..</p>
-            <p><strong>State:</strong> Gujarat, Code: 24</p>
-            <p><strong>PAN No:</strong> AAAFF299..</p>
+            <p><strong>GSTIN :</strong> 24AAAFF2996A1ZS</p>
+            <p><strong>State :</strong> Gujarat, Code: 24</p>
+            <p><strong>PAN No :</strong> AAAFF2996A</p>
           </div>
           <div className="middle-details">
             <p><strong>MICRO UNIT AS PER MSME RULES</strong></p>
-            <p><strong>UDYAM No:</strong> UDYAM-GJ-24-00205..</p>
+            <p><strong>UDYAM No:</strong> UDYAM-GJ-24-0020565</p>
           </div>
           <div className="right-details">
-            <p><strong>LUT ARN No:</strong> AD24032303427..</p>
+            <p><strong>LUT ARN No :</strong> AD240323034277D&nbsp;&nbsp;&nbsp;</p>
             <p><strong>From:</strong> 01/04/2025 <strong>To:</strong> 31/03/2026</p>
           </div>
         </div>
@@ -98,15 +99,15 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
         {/* Invoice and PO details side by side - Fixed layout */}
         <div className="invoice-po-section">
           <div className="invoice-details">
-            <p><strong>Invoice No:</strong> {invoiceNumber}</p>
-            <p><strong>Invoice Date:</strong> {invoiceDate}</p>
+            <p><strong>Invoice No :</strong> {invoiceNumber}</p>
+            <p><strong>Invoice Date :</strong> {invoiceDate}</p>
           </div>
           <div className="invoice-title">
             <h3>TAX INVOICE CUM CHALLAN</h3>
           </div>
           <div className="po-details">
-            {poNumber && <p><strong>PO Number:</strong> {poNumber}</p>}
-            {poDate && <p><strong>PO Date:</strong> {poDate}</p>}
+            {poNumber && <p><strong>PO Number :</strong> {poNumber}</p>}
+            {poDate && <p><strong>PO Date :</strong> {poDate}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>}
           </div>
         </div>
 
@@ -182,9 +183,9 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
             </div>
             <div className="bank-details">
               <p><strong>Bank Name:</strong> BANK OF BARODA</p>
-              <p><strong>Account No:</strong> 05730......</p>
-              <p><strong>Branch:</strong> GIDC </p>
-              <p><strong>IFSC:</strong> BARBOIND... (0 Zero)</p>
+              <p><strong>Account No:</strong> 05730400000053</p>
+              <p><strong>Branch:</strong> GIDC MAKARPURA</p>
+              <p><strong>IFSC:</strong> BARBOINDMAK (0 Zero)</p>
             </div>
           </div>
           <div className="amount-details">
@@ -316,7 +317,7 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
             <p>Certified that particulars given above are true and correct and the amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer</p>
           </div>
           <div className="signature-box">
-            <p>For Techorses</p>
+            <p>For Ferro Tube And Forge Industry</p>
             <div className="signature-line"></div>
             <p>Authorized Signatory</p>
           </div>

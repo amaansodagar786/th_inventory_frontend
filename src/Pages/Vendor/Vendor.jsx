@@ -21,6 +21,9 @@ const Vendor = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -29,6 +32,7 @@ const Vendor = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchTerm.trim().toLowerCase());
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -55,8 +59,10 @@ const Vendor = () => {
   }, []);
 
   // Filter vendors
+
   const filteredVendors = useMemo(() => {
     if (!debouncedSearch) return vendors;
+
     return vendors.filter((v) =>
       v.vendorName?.toLowerCase().includes(debouncedSearch) ||
       v.gstNumber?.toLowerCase().includes(debouncedSearch) ||
@@ -66,6 +72,26 @@ const Vendor = () => {
       v.address?.toLowerCase().includes(debouncedSearch)
     );
   }, [debouncedSearch, vendors]);
+
+  // Paginated vendors
+  const paginatedVendors = useMemo(() => {
+    // If searching, show all filtered results without pagination
+    if (debouncedSearch) return filteredVendors;
+
+    // Otherwise, apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredVendors.slice(0, startIndex + itemsPerPage);
+  }, [filteredVendors, currentPage, itemsPerPage, debouncedSearch]);
+
+  // Check if there are more vendors to load
+  const hasMoreVendors = useMemo(() => {
+    return debouncedSearch ? false : currentPage * itemsPerPage < filteredVendors.length;
+  }, [currentPage, itemsPerPage, filteredVendors.length, debouncedSearch]);
+
+  // Load more vendors
+  const loadMoreVendors = () => {
+    setCurrentPage(prev => prev + 1);
+  };
 
   // Submit vendor
   const initialValues = {
@@ -847,7 +873,7 @@ const Vendor = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredVendors.map((vendor, index) => (
+              {paginatedVendors.map((vendor, index) => (
                 <tr
                   key={vendor.vendorId || index}
                   className={selectedVendor === vendor.vendorId ? "selected" : ""}
@@ -863,6 +889,14 @@ const Vendor = () => {
               ))}
             </tbody>
           </table>
+          
+          {hasMoreVendors && (
+            <div className="load-more-container">
+              <button className="load-more-btn" onClick={loadMoreVendors}>
+                Load More
+              </button>
+            </div>
+          )}
         </div>
 
         {selectedVendor && (

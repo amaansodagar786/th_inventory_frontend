@@ -20,6 +20,9 @@ const Customer = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
+
 
 
   useEffect(() => {
@@ -32,6 +35,7 @@ const Customer = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchTerm.trim().toLowerCase());
+      setCurrentPage(1); // Reset to first page when search changes
     }, 300); // 300ms delay
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -70,16 +74,36 @@ const Customer = () => {
     if (!debouncedSearch) return customers;
 
     return customers.filter((cust) => {
-      // Only search in selected fields
       return (
         cust.customerName?.toLowerCase().includes(debouncedSearch) ||
         cust.gstNumber?.toLowerCase().includes(debouncedSearch) ||
         cust.email?.toLowerCase().includes(debouncedSearch) ||
         cust.companyName?.toLowerCase().includes(debouncedSearch) ||
+        cust.contactNumber?.toLowerCase().includes(debouncedSearch) ||
         cust.address?.toLowerCase().includes(debouncedSearch)
       );
     });
   }, [debouncedSearch, customers]);
+
+  const paginatedCustomers = useMemo(() => {
+    // If searching, show all filtered results without pagination
+    if (debouncedSearch) return filteredCustomers;
+
+    // Otherwise, apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredCustomers.slice(0, startIndex + itemsPerPage);
+  }, [filteredCustomers, currentPage, itemsPerPage, debouncedSearch]);
+
+  // Check if there are more customers to load
+  const hasMoreCustomers = useMemo(() => {
+    return debouncedSearch ? false : currentPage * itemsPerPage < filteredCustomers.length;
+  }, [currentPage, itemsPerPage, filteredCustomers.length, debouncedSearch]);
+
+
+  const loadMoreCustomers = () => {
+    setCurrentPage(prev => prev + 1);
+  };
+
 
   // Handle row selection
   const selectCustomer = (customerId) => {
@@ -990,7 +1014,7 @@ const Customer = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((cust, index) => (
+              {paginatedCustomers.map((cust, index) => (
                 <tr
                   key={cust.customerId || index}
                   className={
@@ -1008,6 +1032,14 @@ const Customer = () => {
               ))}
             </tbody>
           </table>
+
+          {hasMoreCustomers && (
+            <div className="load-more-container">
+              <button className="load-more-btn" onClick={loadMoreCustomers}>
+                Load More
+              </button>
+            </div>
+          )}
         </div>
 
         {selectedCustomer && (

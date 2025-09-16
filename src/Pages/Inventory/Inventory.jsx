@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Navbar from "../../Components/Sidebar/Navbar";
 import html2pdf from "html2pdf.js";
-import { FaFileExport, FaSearch , FaFilter  } from "react-icons/fa";
+import { FaFileExport, FaSearch, FaFilter } from "react-icons/fa";
 import "./Inventory.scss";
 import axios from "axios";
 
@@ -21,6 +21,9 @@ const Inventory = () => {
 
     const [stockFilter, setStockFilter] = useState("all");
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(15); // Adjust as needed
+
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -39,6 +42,7 @@ const Inventory = () => {
             const searchTimeout = setTimeout(() => {
                 if (loaderTimeoutRef.current) clearTimeout(loaderTimeoutRef.current);
                 setDebouncedSearch(searchTerm.trim().toLowerCase());
+                setCurrentPage(1); // Reset to first page when search changes
                 setShowLoader(false);
             }, 300);
 
@@ -49,10 +53,12 @@ const Inventory = () => {
             };
         } else {
             setDebouncedSearch("");
+            setCurrentPage(1); // Reset to first page when search is cleared
             setShowLoader(false);
         }
     }, [searchTerm]);
 
+    // Filter inventory
     // Filter inventory
     const filteredInventory = useMemo(() => {
         let result = inventory;
@@ -73,7 +79,15 @@ const Inventory = () => {
                 if (item.description?.toLowerCase().includes(debouncedSearch)) return true;
 
                 // Check status
-                const status = item.currentStock <= item.minimumQty ? "low stock" : "in stock";
+                let status = "";
+                if (item.currentStock === 0) {
+                    status = "out of stock";
+                } else if (item.currentStock <= item.minimumQty) {
+                    status = "low stock";
+                } else {
+                    status = "in stock";
+                }
+
                 if (status.includes(debouncedSearch)) return true;
 
                 return false;
@@ -82,6 +96,25 @@ const Inventory = () => {
 
         return result;
     }, [debouncedSearch, inventory, stockFilter]);
+
+    // Paginated inventory
+    const paginatedInventory = useMemo(() => {
+        // If searching, show all filtered results without pagination
+        if (debouncedSearch) return filteredInventory;
+
+        // Otherwise, apply pagination
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredInventory.slice(0, startIndex + itemsPerPage);
+    }, [filteredInventory, currentPage, itemsPerPage, debouncedSearch]);
+
+    // Check if there are more items to load
+    const hasMoreInventory = useMemo(() => {
+        return debouncedSearch ? false : currentPage * itemsPerPage < filteredInventory.length;
+    }, [currentPage, itemsPerPage, filteredInventory.length, debouncedSearch]);
+
+    const loadMoreInventory = () => {
+        setCurrentPage(prev => prev + 1);
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -330,7 +363,8 @@ const Inventory = () => {
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredInventory.map((item, index) => (
+                                        // CHANGE THIS LINE: filteredInventory → paginatedInventory
+                                        paginatedInventory.map((item, index) => (
                                             <React.Fragment key={index}>
                                                 <tr
                                                     onClick={() => handleRowClick(item)}
@@ -344,15 +378,22 @@ const Inventory = () => {
                                                     <td>{item.minimumQty}</td>
                                                     <td>{item.currentStock}</td>
                                                     <td>{item.inUse}</td>
-                                                    <td className={item.currentStock <= item.minimumQty ? "low-stock" : "in-stock"}>
-                                                        {item.currentStock <= item.minimumQty
-                                                            ? "Low Stock"
-                                                            : "In Stock"}
+                                                    <td className={
+                                                        item.currentStock === 0 ? "out-of-stock" :
+                                                            item.currentStock <= item.minimumQty ? "low-stock" : "in-stock"
+                                                    }>
+                                                        {item.currentStock === 0
+                                                            ? "Out of Stock"
+                                                            : item.currentStock <= item.minimumQty
+                                                                ? "Low Stock"
+                                                                : "In Stock"}
                                                     </td>
                                                     <td>
-                                                        {item.currentStock <= item.minimumQty
-                                                            ? <span className="alert">Reorder Needed</span>
-                                                            : "-"}
+                                                        {item.currentStock === 0
+                                                            ? <span className="alert urgent">Out of Stock</span>
+                                                            : item.currentStock <= item.minimumQty
+                                                                ? <span className="alert">Reorder Needed</span>
+                                                                : "-"}
                                                     </td>
                                                 </tr>
                                                 {selectedItem?.itemName === item.itemName && (

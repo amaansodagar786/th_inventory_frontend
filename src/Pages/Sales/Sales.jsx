@@ -63,6 +63,11 @@ const Sales = () => {
 
   const fileInputRefs = useRef({});
 
+
+  // Add these near your other state declarations
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -83,6 +88,7 @@ const Sales = () => {
           clearTimeout(loaderTimeoutRef.current);
         }
         setDebouncedSearch(searchTerm.trim().toLowerCase());
+        setCurrentPage(1); // Reset to first page when search changes
         setShowLoader(false);
       }, 300);
 
@@ -95,6 +101,7 @@ const Sales = () => {
       };
     } else {
       setDebouncedSearch("");
+      setCurrentPage(1); // Reset to first page when search is cleared
       setShowLoader(false);
     }
   }, [searchTerm]);
@@ -134,6 +141,25 @@ const Sales = () => {
       return false;
     });
   }, [debouncedSearch, invoices]);
+
+  // Paginated Invoices
+  const paginatedInvoices = useMemo(() => {
+    // If searching, show all filtered results without pagination
+    if (debouncedSearch) return filteredInvoices;
+
+    // Otherwise, apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredInvoices.slice(0, startIndex + itemsPerPage);
+  }, [filteredInvoices, currentPage, itemsPerPage, debouncedSearch]);
+
+  const loadMoreInvoices = () => {
+    setCurrentPage(prev => prev + 1);
+  };
+
+  // Check if there are more invoices to load
+  const hasMoreInvoices = useMemo(() => {
+    return debouncedSearch ? false : currentPage * itemsPerPage < filteredInvoices.length;
+  }, [currentPage, itemsPerPage, filteredInvoices.length, debouncedSearch]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -2130,7 +2156,7 @@ const Sales = () => {
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map((invoice) => (
+                paginatedInvoices.map((invoice) => (
                   <tr
                     key={invoice.invoiceNumber}
                     onClick={() => setSelectedInvoice(invoice)}
@@ -2176,6 +2202,14 @@ const Sales = () => {
               )}
             </tbody>
           </table>
+
+          {hasMoreInvoices && (
+            <div className="load-more-container">
+              <button className="load-more-btn" onClick={loadMoreInvoices}>
+                Load More
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ display: "none" }}>

@@ -26,7 +26,11 @@ const GRN = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showLoader, setShowLoader] = useState(false);
-  const loaderTimeoutRef = useRef(null);
+  const loaderTimeoutRef = useRef(null); 
+
+  const [currentPage, setCurrentPage] = useState(1);
+const [itemsPerPage, setItemsPerPage] = useState(10);
+
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -47,6 +51,7 @@ const GRN = () => {
           clearTimeout(loaderTimeoutRef.current);
         }
         setDebouncedSearch(searchTerm.trim().toLowerCase());
+        setCurrentPage(1);
         setShowLoader(false);
       }, 300);
 
@@ -59,6 +64,7 @@ const GRN = () => {
       };
     } else {
       setDebouncedSearch("");
+      setCurrentPage(1);
       setShowLoader(false);
     }
   }, [searchTerm]);
@@ -168,28 +174,48 @@ const GRN = () => {
   });
 
   const filteredGRNs = useMemo(() => {
-    if (!debouncedSearch) return grns;
+  if (!debouncedSearch) return grns;
 
-    return grns.filter(grn => {
-      if (grn.grnNumber?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.poNumber?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.lrNumber?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.companyName?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.vendorName?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.vendorGST?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.vendorAddress?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.vendorContact?.toLowerCase().includes(debouncedSearch)) return true;
-      if (grn.vendorEmail?.toLowerCase().includes(debouncedSearch)) return true;
+  return grns.filter(grn => {
+    if (grn.grnNumber?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.poNumber?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.lrNumber?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.companyName?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.vendorName?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.vendorGST?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.vendorAddress?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.vendorContact?.toLowerCase().includes(debouncedSearch)) return true;
+    if (grn.vendorEmail?.toLowerCase().includes(debouncedSearch)) return true;
 
-      if (grn.items?.some(item =>
-        item.name?.toLowerCase().includes(debouncedSearch) ||
-        item.description?.toLowerCase().includes(debouncedSearch) ||
-        item.hsn?.toLowerCase().includes(debouncedSearch)
-      )) return true;
+    if (grn.items?.some(item =>
+      item.name?.toLowerCase().includes(debouncedSearch) ||
+      item.description?.toLowerCase().includes(debouncedSearch) ||
+      item.hsn?.toLowerCase().includes(debouncedSearch)
+    )) return true;
 
-      return false;
-    });
-  }, [debouncedSearch, grns]);
+    return false;
+  });
+}, [debouncedSearch, grns]);
+
+// Paginated GRNs
+const paginatedGRNs = useMemo(() => {
+  // If searching, show all filtered results without pagination
+  if (debouncedSearch) return filteredGRNs;
+  
+  // Otherwise, apply pagination
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  return filteredGRNs.slice(0, startIndex + itemsPerPage);
+}, [filteredGRNs, currentPage, itemsPerPage, debouncedSearch]);
+
+// Check if there are more GRNs to load
+const hasMoreGRNs = useMemo(() => {
+  return debouncedSearch ? false : currentPage * itemsPerPage < filteredGRNs.length;
+}, [currentPage, itemsPerPage, filteredGRNs.length, debouncedSearch]);
+
+// Load more GRNs
+const loadMoreGRNs = () => {
+  setCurrentPage(prev => prev + 1);
+};
 
   const handlePOSelect = async (e, setFieldValue) => {
     const selectedPONumber = e.target.value;
@@ -1033,31 +1059,38 @@ const GRN = () => {
                 <th>Total</th>
               </tr>
             </thead>
-            <tbody>
-              {showLoader ? (
-                <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '40px' }}>
-                    <div className="table-loader"></div>
-                  </td>
-                </tr>
-              ) : (
-                filteredGRNs.map((grn) => (
-                  <tr
-                    key={grn.grnNumber}
-                    onClick={() => setSelectedGRN(grn)}
-                    className={selectedGRN?.grnNumber === grn.grnNumber ? "selected" : ""}
-                  >
-                    <td>{grn.grnNumber}</td>
-                    <td>{grn.grnDate}</td>
-                    <td>{grn.companyName}</td>
-                    <td>{grn.vendorName}</td>
-                    <td>₹{grn.total.toFixed(2)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+           <tbody>
+  {showLoader ? (
+    <tr>
+      <td colSpan="5" style={{ textAlign: 'center', padding: '40px' }}>
+        <div className="table-loader"></div>
+      </td>
+    </tr>
+  ) : (
+    paginatedGRNs.map((grn) => (
+      <tr
+        key={grn.grnNumber}
+        onClick={() => setSelectedGRN(grn)}
+        className={selectedGRN?.grnNumber === grn.grnNumber ? "selected" : ""}
+      >
+        <td>{grn.grnNumber}</td>
+        <td>{grn.grnDate}</td>
+        <td>{grn.companyName}</td>
+        <td>{grn.vendorName}</td>
+        <td>₹{grn.total.toFixed(2)}</td>
+      </tr>
+    ))
+  )}
+</tbody>
           </table>
-        </div>
+         {hasMoreGRNs && (
+    <div className="load-more-container">
+      <button className="load-more-btn" onClick={loadMoreGRNs}>
+        Load More
+      </button>
+    </div>
+  )}
+</div>
 
         <div style={{ display: "none" }}>
           {selectedGRN && <GRNPrint grn={selectedGRN} />}

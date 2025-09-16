@@ -31,6 +31,9 @@ const Items = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
+
 
 
   useEffect(() => {
@@ -43,6 +46,7 @@ const Items = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchTerm.trim().toLowerCase());
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -87,6 +91,7 @@ const Items = () => {
   }, []);
 
   // Filter items by itemName, hsnCode, description
+  // Filter items by itemName, hsnCode, description
   const filteredItems = useMemo(() => {
     if (!debouncedSearch) return items;
     return items.filter((item) =>
@@ -95,6 +100,27 @@ const Items = () => {
       item.description?.toLowerCase().includes(debouncedSearch)
     );
   }, [debouncedSearch, items]);
+
+  // Paginated items
+  const paginatedItems = useMemo(() => {
+    // If searching, show all filtered results without pagination
+    if (debouncedSearch) return filteredItems;
+
+    // Otherwise, apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(0, startIndex + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage, debouncedSearch]);
+
+  // Check if there are more items to load
+  const hasMoreItems = useMemo(() => {
+    return debouncedSearch ? false : currentPage * itemsPerPage < filteredItems.length;
+  }, [currentPage, itemsPerPage, filteredItems.length, debouncedSearch]);
+
+
+  // Load more items
+  const loadMoreItems = () => {
+    setCurrentPage(prev => prev + 1);
+  };
 
   const handleSubmit = async (values, { resetForm, setFieldError }) => {
     try {
@@ -179,32 +205,32 @@ const Items = () => {
     html2pdf().from(content).set(opt).save();
   };
 
-const exportAllAsExcel = () => {
-  // Use filteredItems instead of items when search is applied
-  const dataToExport = filteredItems.length > 0 ? filteredItems : items;
-  
-  if (dataToExport.length === 0) {
-    toast.warning("No items to export");
-    return;
-  }
+  const exportAllAsExcel = () => {
+    // Use filteredItems instead of items when search is applied
+    const dataToExport = filteredItems.length > 0 ? filteredItems : items;
 
-  const data = dataToExport.map(item => ({
-    "Item Name": item.itemName,
-    "Minimum Qty": item.minimumQty,
-    "HSN Code": item.hsnCode,
-    "Unit": item.unit,
-    "Tax Slab": `${item.taxSlab}%`,
-    "Description": item.description
-  }));
+    if (dataToExport.length === 0) {
+      toast.warning("No items to export");
+      return;
+    }
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
-  
-  // Use appropriate filename based on whether filtered or all
-  const fileName = debouncedSearch ? "filtered_items.xlsx" : "all_items.xlsx";
-  XLSX.writeFile(workbook, fileName);
-};
+    const data = dataToExport.map(item => ({
+      "Item Name": item.itemName,
+      "Minimum Qty": item.minimumQty,
+      "HSN Code": item.hsnCode,
+      "Unit": item.unit,
+      "Tax Slab": `${item.taxSlab}%`,
+      "Description": item.description
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Items");
+
+    // Use appropriate filename based on whether filtered or all
+    const fileName = debouncedSearch ? "filtered_items.xlsx" : "all_items.xlsx";
+    XLSX.writeFile(workbook, fileName);
+  };
 
   const handleUpdateItem = async (updatedItem) => {
     try {
@@ -586,7 +612,7 @@ const exportAllAsExcel = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((item, index) => (
+              {paginatedItems.map((item, index) => (
                 <tr
                   key={item.itemId || index}
                   className={selectedItem === item.itemId ? 'selected' : ''}
@@ -602,6 +628,13 @@ const exportAllAsExcel = () => {
               ))}
             </tbody>
           </table>
+          {hasMoreItems && (
+            <div className="load-more-container">
+              <button className="load-more-btn" onClick={loadMoreItems}>
+                Load More
+              </button>
+            </div>
+          )}
         </div>
 
 

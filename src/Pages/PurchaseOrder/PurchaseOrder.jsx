@@ -28,8 +28,8 @@ Prices are subject to change without notice.
 `;
 
 // Static addresses
-const CONSIGNEE_ADDRESS = "SayajiGanj , Vadodara - 390001";
-const DELIVERY_ADDRESS = "SayajiGanj , Vadodara - 390001";
+const CONSIGNEE_ADDRESS = "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)";
+const DELIVERY_ADDRESS = "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)";
 
 const PurchaseOrder = () => {
     const [showForm, setShowForm] = useState(false);
@@ -43,6 +43,9 @@ const PurchaseOrder = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(11);
+
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
@@ -50,6 +53,7 @@ const PurchaseOrder = () => {
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedSearch(searchTerm.trim().toLowerCase());
+            setCurrentPage(1);
         }, 300);
         return () => clearTimeout(handler);
     }, [searchTerm]);
@@ -98,12 +102,12 @@ const PurchaseOrder = () => {
         ownerGST: "24AAAFF2996A1ZS",
         ownerPAN: "AAAFF2996A",
         companyName: "",
+        vendorId: "",
         vendorName: "",
         vendorGST: "",
         vendorAddress: "",
         vendorContact: "",
         vendorEmail: "",
-        vendorId: "",
         shipName: "",
         shipCompany: "Ferro Tube And Forge Industries",
         shipPhone: "",
@@ -115,7 +119,7 @@ const PurchaseOrder = () => {
         date: new Date().toISOString().slice(0, 10),
         discount: 0,
         taxSlab: "",
-        items: [{ itemId: "", name: "", description: "", hsn: "", qty: "", rate: "", unit: "" }],
+        items: [{ name: "", description: "", hsn: "", qty: "", rate: "", unit: "", itemId: "" }],
     };
 
     const validationSchema = Yup.object({
@@ -165,6 +169,28 @@ const PurchaseOrder = () => {
         });
     }, [debouncedSearch, orders]);
 
+    // Paginated orders
+    const paginatedOrders = useMemo(() => {
+        // If searching, show all filtered results without pagination
+        if (debouncedSearch) return filteredOrders;
+
+        // Otherwise, apply pagination
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredOrders.slice(0, startIndex + itemsPerPage);
+    }, [filteredOrders, currentPage, itemsPerPage, debouncedSearch]);
+
+
+
+    // Check if there are more orders to load
+    const hasMoreOrders = useMemo(() => {
+        return debouncedSearch ? false : currentPage * itemsPerPage < filteredOrders.length;
+    }, [currentPage, itemsPerPage, filteredOrders.length, debouncedSearch]);
+
+
+    const loadMoreOrders = () => {
+        setCurrentPage(prev => prev + 1);
+    };
+
     const calculateTotals = (items, discount = 0, vendorGST = "", taxSlab = 18) => {
         const subtotal = items.reduce((sum, item) => sum + item.qty * item.rate, 0);
         const discountAmount = +(subtotal * (discount / 100)).toFixed(2);
@@ -190,14 +216,13 @@ const PurchaseOrder = () => {
         const selectedCompanyName = e.target.value;
         const selectedVendor = vendors.find(v => v.companyName === selectedCompanyName);
         if (selectedVendor) {
-
             setFieldValue("companyName", selectedVendor.companyName);
-            setFieldValue("vendorId", selectedVendor.vendorId);
             setFieldValue("vendorName", selectedVendor.vendorName);
             setFieldValue("vendorGST", selectedVendor.gstNumber);
             setFieldValue("vendorAddress", selectedVendor.address);
             setFieldValue("vendorContact", selectedVendor.contactNumber);
             setFieldValue("vendorEmail", selectedVendor.email);
+            setFieldValue("vendorId", selectedVendor.vendorId);
 
             // Update GST type based on vendor's GSTIN
             if (selectedVendor.gstNumber && selectedVendor.gstNumber.length >= 2) {
@@ -217,6 +242,7 @@ const PurchaseOrder = () => {
             setFieldValue(`items.${index}.hsn`, selectedItem.hsnCode);
             setFieldValue(`items.${index}.unit`, selectedItem.unit);
             setFieldValue(`items.${index}.itemId`, selectedItem.itemId);
+
             if (selectedItem.rate) {
                 setFieldValue(`items.${index}.rate`, selectedItem.rate);
             }
@@ -413,6 +439,7 @@ const PurchaseOrder = () => {
         toast.success(`Exported ${dataToExport.length} purchase orders with detailed information`);
     };
 
+
     const handleUpdatePO = async (updatedPO) => {
         try {
             // Remove fields that shouldn't be sent to backend
@@ -420,16 +447,31 @@ const PurchaseOrder = () => {
 
             cleanPO.date = updatedPO.date;
 
+            // Recalculate totals before sending to backend
+            const totals = calculateTotals(
+                cleanPO.items || [],
+                cleanPO.discount || 0,
+                cleanPO.vendorGST,
+                cleanPO.taxSlab || 18
+            );
+
+            // Include the recalculated totals in the update data
+            const updateData = {
+                ...cleanPO,
+                ...totals,
+                gstType: totals.isIntraState ? "intra" : "inter"
+            };
+
             const res = await axios.put(
                 `${import.meta.env.VITE_API_URL}/po/update-po/${updatedPO.poNumber}`,
-                cleanPO
+                updateData
             );
 
             if (res.data.success) {
                 setOrders(prev => prev.map(po =>
                     po.poNumber === updatedPO.poNumber ? res.data.data : po
                 ));
-                setSelectedPO(res.data.data); // Update the selected PO with new data
+                setSelectedPO(res.data.data);
                 toast.success("Purchase Order updated successfully!");
                 return true;
             } else {
@@ -438,7 +480,49 @@ const PurchaseOrder = () => {
             }
         } catch (error) {
             console.error("Error while updating PO:", error);
-            toast.error(error.response?.data?.message || "Error while updating PO");
+
+            // Enhanced error handling to show specific item quantities
+            if (error.response?.data?.message && error.response.data.items) {
+                // Handle backend validation errors with specific quantities
+                if (error.response.data.items.length === 1) {
+                    const item = error.response.data.items[0];
+                    toast.error(`Cannot reduce quantity for "${item.name}" below ${item.receivedQty} (already received). Requested: ${item.requestedQty}`);
+                } else {
+                    const errorDetails = error.response.data.items.map(item =>
+                        `"${item.name}": Requested ${item.requestedQty}, Received ${item.receivedQty}`
+                    ).join('; ');
+
+                    toast.error(`Cannot reduce quantities below received amounts: ${errorDetails}`);
+                }
+            } else {
+                toast.error(error.response?.data?.message || "Error while updating PO");
+            }
+            return false;
+        }
+    };
+
+    // In the PurchaseOrder component, add this function
+    const checkGRNForItems = async (poNumber, itemsToCheck = []) => {
+        try {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/po/check-grn-for-items`, {
+                params: {
+                    poNumber,
+                    itemNames: itemsToCheck.map(item => item.name)
+                }
+            });
+            return res.data;
+        } catch (error) {
+            console.error("Error checking GRN for items:", error);
+            return { hasGRN: false, itemsWithGRN: [] };
+        }
+    };
+
+    const checkGRNForPO = async (poNumber) => {
+        try {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/grn/check-grn-for-po/${poNumber}`);
+            return res.data.hasGRN;
+        } catch (error) {
+            console.error("Error checking GRN for PO:", error);
             return false;
         }
     };
@@ -470,6 +554,11 @@ const PurchaseOrder = () => {
         const [editedPO, setEditedPO] = useState({});
         const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
         const [errors, setErrors] = useState({});
+        const [grnCheckLoading, setGrnCheckLoading] = useState(false);
+        const [receivedQuantities, setReceivedQuantities] = useState({});
+        const [grnQuantities, setGrnQuantities] = useState({}); // Add this state
+
+
 
         useEffect(() => {
             document.body.style.overflow = 'hidden';
@@ -482,8 +571,169 @@ const PurchaseOrder = () => {
             if (po) {
                 setEditedPO({ ...po });
                 setErrors({});
+                loadGRNQuantities(po.poNumber);
             }
         }, [po]);
+
+        // Function to load GRN quantities
+        const loadGRNQuantities = async (poNumber) => {
+            try {
+                // Get all GRN quantities for this PO
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/po/check-items-grn/${poNumber}`);
+                setGrnQuantities(res.data.itemGRNQuantities || {});
+            } catch (error) {
+                console.error("Error loading GRN quantities:", error);
+            }
+        };
+
+
+        const checkItemsForGRN = async (items) => {
+            setGrnCheckLoading(true);
+            try {
+                // Filter out items that are clearly new (no name or no itemId)
+                const validItems = items.filter(item =>
+                    item && item.name && item.name.trim() !== "" &&
+                    item.itemId && item.itemId.trim() !== ""
+                );
+
+                if (validItems.length === 0) {
+                    return { itemsWithGRN: [], quantities: {} };
+                }
+
+                const itemNames = validItems.map(item => item.name).filter(name => name);
+
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/po/check-items-grn/${po.poNumber}`, {
+                    params: {
+                        itemNames: itemNames.join(',')
+                    }
+                });
+
+                return {
+                    itemsWithGRN: res.data.itemsWithGRN || [],
+                    quantities: res.data.itemGRNQuantities || {}
+                };
+            } catch (error) {
+                console.error("Error checking GRN for items:", error);
+                // Return empty arrays instead of throwing error
+                return { itemsWithGRN: [], quantities: {} };
+            } finally {
+                setGrnCheckLoading(false);
+            }
+        };
+
+        // Update the delete button click handler
+        const handleDeleteClick = async () => {
+            setGrnCheckLoading(true);
+            try {
+                const hasGRN = await checkGRNForPO(po.poNumber);
+
+                if (hasGRN) {
+                    toast.error("Cannot delete PO because GRN(s) have been created for it");
+                    return; // Return early, don't show confirmation
+                }
+
+                // If no GRN exists, show the confirmation dialog
+                setShowDeleteConfirm(true);
+            } catch (error) {
+                console.error("Error checking GRN:", error);
+                toast.error("Error checking GRN status");
+            } finally {
+                setGrnCheckLoading(false);
+            }
+        };
+
+
+        // Add new item function
+        const handleAddItem = () => {
+            setEditedPO(prev => ({
+                ...prev,
+                items: [...(prev.items || []), {
+                    name: "",
+                    description: "",
+                    hsn: "",
+                    qty: "",
+                    rate: "",
+                    unit: "",
+                    itemId: "new" // Mark as new item
+                }]
+            }));
+        };
+
+        // Remove item function
+
+        // Remove item function - Immediate check on icon click
+        const handleRemoveItem = async (index) => {
+            if (editedPO.items.length <= 1) {
+                toast.warn("At least one item is required");
+                return;
+            }
+
+            const itemToRemove = editedPO.items[index];
+
+            // Check if this is a newly added item (no itemId or empty itemId)
+            const isNewItem = !itemToRemove.itemId || itemToRemove.itemId === "" ||
+                itemToRemove.itemId === "new" || !itemToRemove.name;
+
+            if (isNewItem) {
+                // New items can be removed without GRN check
+                setEditedPO(prev => ({
+                    ...prev,
+                    items: prev.items.filter((_, i) => i !== index)
+                }));
+                return;
+            }
+
+            // For existing items, check if they have GRN created
+            if (itemToRemove && itemToRemove.name) {
+                setGrnCheckLoading(true);
+                try {
+                    const { itemsWithGRN } = await checkItemsForGRN([itemToRemove]);
+
+                    // Check if this specific item has GRN
+                    const hasGRN = itemsWithGRN.includes(itemToRemove.name);
+
+                    if (hasGRN) {
+                        toast.error(`Cannot remove "${itemToRemove.name}" because GRN has been created for this item`);
+                        return;
+                    }
+
+                    // If no GRN, proceed with removal
+                    setEditedPO(prev => ({
+                        ...prev,
+                        items: prev.items.filter((_, i) => i !== index)
+                    }));
+
+                    // Clear errors for removed item
+                    setErrors(prev => {
+                        const newErrors = { ...prev };
+                        Object.keys(newErrors).forEach(key => {
+                            if (key.startsWith(`items.${index}`)) {
+                                delete newErrors[key];
+                            }
+                        });
+                        return newErrors;
+                    });
+
+                } catch (error) {
+                    console.error("Error checking GRN:", error);
+                    // Don't show error for GRN check failures, just allow removal
+                    // This prevents blocking removal due to network issues
+                    setEditedPO(prev => ({
+                        ...prev,
+                        items: prev.items.filter((_, i) => i !== index)
+                    }));
+                } finally {
+                    setGrnCheckLoading(false);
+                }
+            } else {
+                // If item has issues, just remove it
+                setEditedPO(prev => ({
+                    ...prev,
+                    items: prev.items.filter((_, i) => i !== index)
+                }));
+            }
+        };
+
 
         const validateForm = (values) => {
             const newErrors = {};
@@ -515,6 +765,9 @@ const PurchaseOrder = () => {
             // Items validation
             if (values.items && values.items.length > 0) {
                 values.items.forEach((item, index) => {
+                    if (!item.name) {
+                        newErrors[`items.${index}.name`] = "Item name is required";
+                    }
                     if (!item.qty || item.qty <= 0) {
                         newErrors[`items.${index}.qty`] = "Quantity must be greater than 0";
                     }
@@ -530,13 +783,11 @@ const PurchaseOrder = () => {
         const handleInputChange = (e) => {
             const { name, value } = e.target;
 
-            // Special validation for contact person
             if (name === "shipName" && /^[0-9]+$/.test(value)) {
                 setErrors(prev => ({ ...prev, [name]: "Contact person should not contain only numbers" }));
                 return;
             }
 
-            // Convert numeric fields to numbers
             let processedValue = value;
             if (name === "discount" || name === "taxSlab") {
                 processedValue = value === "" ? "" : Number(value);
@@ -544,21 +795,24 @@ const PurchaseOrder = () => {
 
             setEditedPO(prev => ({ ...prev, [name]: processedValue }));
 
-            // Validate the field in real-time
             const fieldErrors = validateForm({ ...editedPO, [name]: processedValue });
             setErrors(prev => ({ ...prev, [name]: fieldErrors[name] }));
         };
 
         const handleItemChange = (index, field, value) => {
             const updatedItems = [...editedPO.items];
-            updatedItems[index] = { ...updatedItems[index], [field]: parseFloat(value) || 0 };
+
+            if (field === 'qty' || field === 'rate') {
+                updatedItems[index] = { ...updatedItems[index], [field]: parseFloat(value) || 0 };
+            } else {
+                updatedItems[index] = { ...updatedItems[index], [field]: value };
+            }
 
             setEditedPO(prev => ({
                 ...prev,
                 items: updatedItems
             }));
 
-            // Validate the item field
             const fieldErrors = validateForm({ ...editedPO, items: updatedItems });
             setErrors(prev => ({
                 ...prev,
@@ -566,7 +820,6 @@ const PurchaseOrder = () => {
             }));
         };
 
-        // Add vendor and item dropdown handlers
         const handleVendorSelect = (selectedOption) => {
             if (selectedOption) {
                 const selectedVendor = selectedOption.vendorData;
@@ -577,7 +830,8 @@ const PurchaseOrder = () => {
                     vendorGST: selectedVendor.gstNumber,
                     vendorAddress: selectedVendor.address,
                     vendorContact: selectedVendor.contactNumber,
-                    vendorEmail: selectedVendor.email
+                    vendorEmail: selectedVendor.email,
+                    vendorId: selectedVendor.vendorId
                 }));
             }
         };
@@ -592,17 +846,71 @@ const PurchaseOrder = () => {
                     description: selectedItem.description,
                     hsn: selectedItem.hsnCode,
                     unit: selectedItem.unit,
-                    rate: selectedItem.rate || updatedItems[index].rate // Keep existing rate if item doesn't have one
+                    itemId: selectedItem.itemId, // Ensure itemId is properly set
+                    rate: selectedItem.rate || updatedItems[index].rate
                 };
 
                 setEditedPO(prev => ({
                     ...prev,
                     items: updatedItems
                 }));
+
+                // Clear errors for this item
+                setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors[`items.${index}.name`];
+                    return newErrors;
+                });
             }
         };
 
+        // In the POModal component, update the handleSave function
         const handleSave = async () => {
+            // Check if any items were removed that have GRNs
+            const originalItems = po.items || [];
+            const updatedItems = editedPO.items || [];
+
+            const removedItems = originalItems.filter(originalItem =>
+                !updatedItems.some(updatedItem => updatedItem.name === originalItem.name)
+            );
+
+            if (removedItems.length > 0) {
+                const { itemsWithGRN } = await checkItemsForGRN(removedItems);
+
+                if (itemsWithGRN.length > 0) {
+                    toast.error(`Cannot remove items with GRNs: ${itemsWithGRN.join(', ')}`);
+                    return;
+                }
+            }
+
+            // Check for quantity validation
+            const itemsWithInsufficientQty = [];
+            editedPO.items.forEach(item => {
+                const receivedQty = grnQuantities[item.name] || 0;
+                if (item.qty < receivedQty) {
+                    itemsWithInsufficientQty.push({
+                        name: item.name,
+                        requested: item.qty,
+                        received: receivedQty
+                    });
+                }
+            });
+
+            if (itemsWithInsufficientQty.length > 0) {
+                // Enhanced error message with specific quantities
+                if (itemsWithInsufficientQty.length === 1) {
+                    const item = itemsWithInsufficientQty[0];
+                    toast.error(`Cannot reduce quantity for "${item.name}" below ${item.received} (already received). Requested: ${item.requested}`);
+                } else {
+                    const errorMessage = itemsWithInsufficientQty.map(item =>
+                        `"${item.name}": Requested ${item.requested}, Received ${item.received}`
+                    ).join('; ');
+
+                    toast.error(`Cannot reduce quantities below received amounts: ${errorMessage}`);
+                }
+                return;
+            }
+
             const formErrors = validateForm(editedPO);
             if (Object.keys(formErrors).length > 0) {
                 setErrors(formErrors);
@@ -618,12 +926,39 @@ const PurchaseOrder = () => {
                 }
             } catch (error) {
                 console.error("Error updating PO:", error);
+
+                // Enhanced error handling for backend validation
+                if (error.response?.data?.message && error.response.data.items) {
+                    // Handle backend validation errors with specific quantities
+                    if (error.response.data.items.length === 1) {
+                        const item = error.response.data.items[0];
+                        toast.error(`Cannot reduce quantity for "${item.name}" below ${item.receivedQty} (already received). Requested: ${item.requestedQty}`);
+                    } else {
+                        const errorDetails = error.response.data.items.map(item =>
+                            `"${item.name}": Requested ${item.requestedQty}, Received ${item.receivedQty}`
+                        ).join('; ');
+
+                        toast.error(`Cannot reduce quantities below received amounts: ${errorDetails}`);
+                    }
+                } else {
+                    toast.error(error.response?.data?.message || "Error while updating PO");
+                }
             }
         };
 
-        // Calculate totals function
+        //  function to check GRN quantities
+        const checkGRNQuantities = async (poNumber) => {
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/po/grn-quantities/${poNumber}`);
+                return res.data.receivedQuantities || {};
+            } catch (error) {
+                console.error("Error checking GRN quantities:", error);
+                return {};
+            }
+        };
         const calculateTotals = (items, discount = 0, vendorGST = "", taxSlab = 18) => {
-            const subtotal = items.reduce((sum, item) => sum + (item.qty || 0) * (item.rate || 0), 0);
+            const validItems = (items || []).filter(item => item.qty && item.rate);
+            const subtotal = validItems.reduce((sum, item) => sum + (item.qty || 0) * (item.rate || 0), 0);
             const discountAmount = +(subtotal * (discount / 100)).toFixed(2);
             const discountedSubtotal = +(subtotal - discountAmount).toFixed(2);
 
@@ -640,6 +975,14 @@ const PurchaseOrder = () => {
             const total = +(discountedSubtotal + cgst + sgst + igst).toFixed(2);
             return { subtotal, discountAmount, discountedSubtotal, cgst, sgst, igst, total, isIntraState };
         };
+
+        {
+            grnCheckLoading && (
+                <div className="loading-overlay">
+                    <div className="loading-spinner">Checking GRN status...</div>
+                </div>
+            )
+        }
 
         if (!po) return null;
 
@@ -841,92 +1184,139 @@ const PurchaseOrder = () => {
                             </div>
 
                             {/* Items (editable quantities and rates) */}
-                            <div className="section-header">Items Ordered</div>
-                            {(editedPO.items || []).map((item, index) => (
-                                <div key={index} className="item-card">
-                                    <div className="item-header">
-                                        {isEditing ? (
-                                            <div className="edit-field-container">
-                                                <Select
-                                                    className="react-select-container"
-                                                    classNamePrefix="react-select"
-                                                    options={items
-                                                        .filter(availableItem =>
-                                                            // Only show items that haven't been selected in other rows
-                                                            !editedPO.items.some((selectedItem, selectedIndex) =>
-                                                                selectedIndex !== index &&
-                                                                selectedItem.name === availableItem.itemName
+                            <div className="section-header">
+                                Items Ordered
+                                {isEditing && (
+                                    <button
+                                        className="new-add-item-btn"
+                                        onClick={handleAddItem}
+                                        type="button"
+                                    >
+                                        <FaPlus /> Add Item
+                                    </button>
+                                )}
+                            </div>
+
+                            {(editedPO.items || []).map((item, index) => {
+                                const receivedQty = grnQuantities[item.name] || 0; // Define receivedQty here
+
+                                return (
+                                    <div key={index} className="item-card">
+                                        <div className="item-header">
+                                            {isEditing ? (
+                                                <div className="edit-field-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <Select
+                                                        className="react-select-container"
+                                                        classNamePrefix="react-select"
+                                                        options={items
+                                                            .filter(availableItem =>
+                                                                !editedPO.items.some((selectedItem, selectedIndex) =>
+                                                                    selectedIndex !== index &&
+                                                                    selectedItem.name === availableItem.itemName
+                                                                )
                                                             )
-                                                        )
-                                                        .map(item => ({
-                                                            value: item.itemName,
-                                                            label: item.itemName,
-                                                            itemData: item
-                                                        }))
-                                                    }
-                                                    onChange={(selectedOption) => handleItemSelect(selectedOption, index)}
-                                                    value={item.name ? {
-                                                        value: item.name,
-                                                        label: item.name
-                                                    } : null}
-                                                    placeholder="Select Item"
-                                                    isSearchable={true}
-                                                    noOptionsMessage={() => "No items available"}
-                                                />
+                                                            .map(item => ({
+                                                                value: item.itemName,
+                                                                label: item.itemName,
+                                                                itemData: item
+                                                            }))
+                                                        }
+                                                        onChange={(selectedOption) => handleItemSelect(selectedOption, index)}
+                                                        value={item.name ? {
+                                                            value: item.name,
+                                                            label: item.name
+                                                        } : null}
+                                                        placeholder="Select Item"
+                                                        isSearchable={true}
+                                                        noOptionsMessage={() => "No items available"}
+                                                    />
+                                                    {editedPO.items.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            className="remove-item-btn"
+                                                            onClick={() => handleRemoveItem(index)}
+                                                            title="Remove item"
+                                                            disabled={grnCheckLoading}
+                                                        >
+                                                            {grnCheckLoading ? "..." : <FaTrash />}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="item-name">{item.name}</span>
+                                            )}
+                                            <span className="item-hsn">HSN: {item.hsn || 'N/A'}</span>
+
+                                            {/* {receivedQty > 0 && (
+                                                <span className="item-received">
+                                                    Received: {receivedQty} {item.unit}
+                                                </span>
+                                            )} */}
+                                        </div>
+
+                                        <div className="item-description">
+                                            {item.description || 'No description'}
+                                        </div>
+
+                                        <div className="item-details">
+                                            <div>
+                                                <span>Qty: </span>
+                                                {isEditing ? (
+                                                    <div className="edit-field-container">
+                                                        <input
+                                                            type="number"
+                                                            min={receivedQty} // Set minimum to received quantity
+                                                            step="0.01"
+                                                            value={item.qty || ''}
+                                                            onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
+                                                            className={`edit-input ${errors[`items.${index}.qty`] ? 'error' : ''}`}
+                                                        />
+                                                        <span>{item.unit}</span>
+                                                        {errors[`items.${index}.qty`] && (
+                                                            <div className="error-message">{errors[`items.${index}.qty`]}</div>
+                                                        )}
+                                                        {receivedQty > 0 && (
+                                                            <div className="quantity-warning">
+                                                                Minimum: {receivedQty} (already received)
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span>{item.qty} {item.unit}</span>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <span className="item-name">{item.name}</span>
+
+                                            <div>
+                                                <span>Rate: </span>
+                                                {isEditing ? (
+                                                    <div className="edit-field-container">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={item.rate || ''}
+                                                            onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                                                            className={`edit-input ${errors[`items.${index}.rate`] ? 'error' : ''}`}
+                                                        />
+                                                        {errors[`items.${index}.rate`] && (
+                                                            <div className="error-message">{errors[`items.${index}.rate`]}</div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span>₹{item.rate?.toFixed(2)}</span>
+                                                )}
+                                            </div>
+
+                                            <span>Total: ₹{((item.qty || 0) * (item.rate || 0)).toFixed(2)}</span>
+                                        </div>
+
+                                        {errors[`items.${index}.name`] && (
+                                            <div className="error-message">{errors[`items.${index}.name`]}</div>
                                         )}
-                                        <span className="item-hsn">HSN: {item.hsn || 'N/A'}</span>
                                     </div>
-                                    <div className="item-description">
-                                        {item.description || 'No description'}
-                                    </div>
-                                    <div className="item-details">
-                                        <div>
-                                            <span>Qty: </span>
-                                            {isEditing ? (
-                                                <div className="edit-field-container">
-                                                    <input
-                                                        type="number"
-                                                        min="0.01"
-                                                        step="0.01"
-                                                        value={item.qty || ''}
-                                                        onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
-                                                        className={`edit-input ${errors[`items.${index}.qty`] ? 'error' : ''}`}
-                                                    />
-                                                    {errors[`items.${index}.qty`] && (
-                                                        <div className="error-message">{errors[`items.${index}.qty`]}</div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span>{item.qty} {item.unit}</span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <span>Rate: </span>
-                                            {isEditing ? (
-                                                <div className="edit-field-container">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={item.rate || ''}
-                                                        onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                                                        className={`edit-input ${errors[`items.${index}.rate`] ? 'error' : ''}`}
-                                                    />
-                                                    {errors[`items.${index}.rate`] && (
-                                                        <div className="error-message">{errors[`items.${index}.rate`]}</div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span>₹{item.rate?.toFixed(2)}</span>
-                                            )}
-                                        </div>
-                                        <span>Total: ₹{((item.qty || 0) * (item.rate || 0)).toFixed(2)}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            }
+                            )}
 
                             {/* Extra Note (editable) */}
                             <div className="section-header">Additional Notes</div>
@@ -1004,9 +1394,10 @@ const PurchaseOrder = () => {
                         </button>
                         <button
                             className="delete-btn"
-                            onClick={() => setShowDeleteConfirm(true)}
+                            onClick={handleDeleteClick} // Changed to the new handler
+                            disabled={grnCheckLoading}
                         >
-                            <FaTrash /> Delete
+                            {grnCheckLoading ? "Checking..." : <><FaTrash /> Delete</>}
                         </button>
                     </div>
                 </div>
@@ -1174,7 +1565,7 @@ const PurchaseOrder = () => {
                                             <div className="form-group-row">
                                                 <div className="field-wrapper">
                                                     <label>Company Name</label>
-                                                    <Field name="shipCompany" readOnly value="Techorses" />
+                                                    <Field name="shipCompany" readOnly value="Ferro Tube And Forge Industry" />
                                                 </div>
                                                 <div className="field-wrapper">
                                                     <label>Contact Person</label>
@@ -1373,7 +1764,7 @@ const PurchaseOrder = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredOrders.map((po) => (
+                            {paginatedOrders.map((po) => (
                                 <tr
                                     key={po.poNumber}
                                     onClick={() => setSelectedPO(po)}
@@ -1388,6 +1779,13 @@ const PurchaseOrder = () => {
                             ))}
                         </tbody>
                     </table>
+                    {hasMoreOrders && (
+                        <div className="load-more-container">
+                            <button className="load-more-btn" onClick={loadMoreOrders}>
+                                Load More
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div style={{ display: "none" }}>

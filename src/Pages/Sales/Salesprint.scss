@@ -9,7 +9,7 @@
   background: #fff;
   box-sizing: border-box;
   position: relative;
- 
+
 
   .main-content {
     position: relative;
@@ -20,22 +20,39 @@
   .company-details {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 10px;
     padding-bottom: 5px;
     page-break-inside: avoid;
 
     .left-details,
-    .middle-details,
     .right-details {
+      width: 32%; // Reduced from 35% to 32% to balance the center
+
       p {
         margin: 3px 0;
-        text-align: center;
+        text-align: left;
+        font-size: 11px;
       }
     }
 
     .middle-details {
+      width: 36%; // Increased from 30% to 36% to properly center the content
+      text-align: center;
+
       p {
+        margin: 3px 0;
         font-size: 11px;
+
+        strong {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .right-details {
+      p {
+        text-align: right;
       }
     }
   }
@@ -155,10 +172,14 @@
     }
 
     td.description-cell {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      word-break: normal !important;
+      white-space: normal;
+      /* allow wrapping */
+      overflow: visible;
+      /* don’t cut off text */
+      text-overflow: unset;
+      /* remove ellipsis */
+      word-break: break-word;
+      /* break long words if needed */
     }
   }
 
@@ -325,7 +346,7 @@
 
   /* repeat on every printed page & reserve space */
 
-  
+
 
   /* the real content flows as table rows between header & footer on each page */
   #sales-pdf .main-content {

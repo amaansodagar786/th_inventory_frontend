@@ -6,7 +6,7 @@ const PurchaseOrderPrint = ({ po }) => {
 
   const isIntraState = po.vendorGST?.startsWith("24");
   const taxSlab = po.taxSlab || 18;
-  const hasDiscount = po.discount && po.discount > 0;
+  const hasDiscount = po.discount !== undefined && po.discount > 0;
 
   return (
     <div className="print-container" id="po-pdf">
@@ -14,26 +14,28 @@ const PurchaseOrderPrint = ({ po }) => {
       <div className="header-space"></div>
 
       <div className="main-content">
-        {/* Company GST and LUT details - same style as sales */}
+        {/* Company GST and LUT details - fixed alignment */}
         <div className="company-details">
           <div className="left-details">
-            <p><strong>GSTIN:</strong> 24AAAFF2996A1..</p>
-            <p><strong>State:</strong> Gujarat, Code: 24</p>
-            <p><strong>PAN No:</strong> AAAFF299..</p>
+            <p><strong>GSTIN :</strong> 24AAAFF2996A1ZS</p>
+            <p><strong>State :</strong> Gujarat, Code: 24</p>
+            <p><strong>PAN No :</strong> AAAFF2996A</p>
           </div>
           <div className="middle-details">
             <h3>PURCHASE ORDER</h3>
           </div>
           <div className="right-details">
-            <p><strong>LUT ARN No:</strong> AD24022405020..</p>
+            <p><strong>LUT ARN No :&nbsp;&nbsp;</strong> AD240224050202C</p>
             <p><strong>From:</strong> 01/04/2025 <strong>To:</strong> 31/03/2026</p>
           </div>
         </div>
 
-        {/* PO details section */}
+        {/* PO details section - fixed alignment */}
         <div className="invoice-po-section">
           <div className="po-details">
             <p><strong>PO Number:</strong> {po.poNumber}</p>
+          </div>
+          <div className="po-date">
             <p><strong>PO Date:</strong> {po.date}</p>
           </div>
         </div>
@@ -42,18 +44,19 @@ const PurchaseOrderPrint = ({ po }) => {
         <div className="party-section">
           <div className="party-card">
             <h3>Vendor Details:</h3>
-            <p><strong>{po.vendorName}</strong></p>
+            <p><strong>{po.companyName}</strong></p>
             <p>{po.vendorAddress}</p>
+            <p>Name: {po.vendorName}</p>
             <p>GSTIN: {po.vendorGST}</p>
             <p>Contact: {po.vendorContact}</p>
             <p>Email: {po.vendorEmail}</p>
           </div>
           <div className="party-card">
             <h3>Shipping Details:</h3>
-            <p><strong>{po.shipName || po.vendorName}</strong></p>
-            <p>{po.deliveryAddress || "Vadodara -Gujarat (India)"}</p>
+            <p><strong>{po.shipCompany || "Ferro Tube And Forge Industries"}</strong></p>
+            <p>{po.shipName || po.vendorName}</p>
+            <p>{po.deliveryAddress || "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)"}</p>
             <p>Contact: {po.shipPhone || po.vendorContact}</p>
-            {po.shipCompany && <p>Company: {po.shipCompany}</p>}
           </div>
         </div>
 
@@ -161,16 +164,12 @@ const PurchaseOrderPrint = ({ po }) => {
 
           {/* Signature on the right */}
           <div className="signature-box">
-            <p>For Techorses</p>
+            <p>For Ferro Tube & Forge Industries</p>
             <div className="signature-line"></div>
             <p>Authorised Signatory</p>
           </div>
         </div>
-
-
       </div>
-
-
     </div>
   );
 };

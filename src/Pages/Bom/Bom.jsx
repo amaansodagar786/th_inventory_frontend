@@ -26,6 +26,10 @@ const Bom = () => {
   const [showLoader, setShowLoader] = useState(false);
   const loaderTimeoutRef = useRef(null);
 
+  // Add these near your other state declarations
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -41,6 +45,7 @@ const Bom = () => {
       const searchTimeout = setTimeout(() => {
         if (loaderTimeoutRef.current) clearTimeout(loaderTimeoutRef.current);
         setDebouncedSearch(searchTerm.trim().toLowerCase());
+        setCurrentPage(1); // Reset to first page when search changes
         setShowLoader(false);
       }, 300);
 
@@ -51,6 +56,7 @@ const Bom = () => {
       };
     } else {
       setDebouncedSearch("");
+      setCurrentPage(1); // Reset to first page when search is cleared
       setShowLoader(false);
     }
   }, [searchTerm]);
@@ -158,6 +164,27 @@ const Bom = () => {
       return false;
     });
   }, [debouncedSearch, boms]);
+
+
+  // Paginated BOMs
+  const paginatedBOMs = useMemo(() => {
+    // If searching, show all filtered results without pagination
+    if (debouncedSearch) return filteredBOMs;
+
+    // Otherwise, apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredBOMs.slice(0, startIndex + itemsPerPage);
+  }, [filteredBOMs, currentPage, itemsPerPage, debouncedSearch]);
+
+  // Check if there are more BOMs to load
+  const hasMoreBOMs = useMemo(() => {
+    return debouncedSearch ? false : currentPage * itemsPerPage < filteredBOMs.length;
+  }, [currentPage, itemsPerPage, filteredBOMs.length, debouncedSearch]);
+
+
+  const loadMoreBOMs = () => {
+    setCurrentPage(prev => prev + 1);
+  };
 
   // Get available items for selection (excluding already selected items)
   const getAvailableItems = (currentItems, currentIndex) => {
@@ -808,7 +835,7 @@ const Bom = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBOMs.map((bom) => (
+                paginatedBOMs.map((bom) => (
                   <tr
                     key={bom.bomId}
                     onClick={() => setSelectedBOM(bom)}
@@ -822,6 +849,14 @@ const Bom = () => {
               )}
             </tbody>
           </table>
+
+          {hasMoreBOMs && (
+            <div className="load-more-container">
+              <button className="load-more-btn" onClick={loadMoreBOMs}>
+                Load More
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ display: "none" }}>
