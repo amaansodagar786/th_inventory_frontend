@@ -512,6 +512,19 @@
   border-radius: 8px;
   background-color: #f8f9fa;
   border-left: 4px solid;
+  border-bottom: 1px solid #eee;
+
+}
+
+.order-icon {
+  color: #28a745;
+  cursor: pointer;
+  font-size: 18px;
+  margin-left: 10px;
+}
+
+.order-icon:hover {
+  color: #218838;
 }
 
 .low-stock-alert .inventory-item {
