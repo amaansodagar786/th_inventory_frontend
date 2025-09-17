@@ -129,10 +129,10 @@ const Login = () => {
               </button>
             </form>
 
-            <div className="switch-auth">
+            {/* <div className="switch-auth">
               Don't have an account?
               <button onClick={handleSwitchToRegister} className="switch-button">Register here</button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
