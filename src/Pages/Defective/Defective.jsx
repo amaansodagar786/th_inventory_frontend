@@ -566,7 +566,7 @@ const Defective = () => {
             </div>
           </div>
 
-          <div className="modal-footer">
+          {/* <div className="modal-footer">
             <button className="export-btn" onClick={onExport}>
               <FaFileExport /> Export as PDF
             </button>
@@ -576,7 +576,7 @@ const Defective = () => {
             >
               <FaTrash /> Delete
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* Delete Confirmation Dialog */}
