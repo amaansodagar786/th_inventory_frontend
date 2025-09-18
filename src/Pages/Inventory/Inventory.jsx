@@ -350,6 +350,7 @@ const Inventory = () => {
                                         <th>Avg Price</th>
                                         <th>Min Qty</th>
                                         <th>Current Stock</th>
+                                        <th>Defect</th>
                                         <th>In Use</th>
                                         <th>Status</th>
                                         <th>Notification</th>
@@ -377,6 +378,7 @@ const Inventory = () => {
                                                     <td>₹{item.averagePrice?.toFixed(2) || "0.00"}</td>
                                                     <td>{item.minimumQty}</td>
                                                     <td>{item.currentStock}</td>
+                                                    <td>{item.defect}</td>
                                                     <td>{item.inUse}</td>
                                                     <td className={
                                                         item.currentStock === 0 ? "out-of-stock" :

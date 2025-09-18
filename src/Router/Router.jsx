@@ -13,6 +13,7 @@ import Register from "../Pages/Authentication/Register/Register";
 import Login from "../Pages/Authentication/Login/Login";
 import ProtectedRoute from "../Components/Protected/ProtectedRoute";
 import WorkOrder from "../Pages/WorkOrder/WorkOrder";
+import Defective from "../Pages/Defective/Defective";
 
 import Footer from "../Components/Footer/Footer";
 
@@ -49,6 +50,7 @@ const Router = () => {
             <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
             <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
             <Route path="/work-order" element={<ProtectedRoute><WorkOrder /></ProtectedRoute>} />
+            <Route path="/defective" element={<ProtectedRoute><Defective /></ProtectedRoute>} />
 
           </Routes>
         </div>
