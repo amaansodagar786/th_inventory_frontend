@@ -48,7 +48,7 @@ const Navbar = ({ children }) => {
     { icon: <PiBasket />, title: "Sales", path: "/sales" },
     { icon: <BiLayout />, title: "Inventory", path: "/inventory" },
     { icon: <TbMessages />, title: "Defective", path: "/defective" },
-    { icon: <TbMessages />, title: "Report", path: "/report" },
+    // { icon: <TbMessages />, title: "Report", path: "/report" }, 
   ];
 
   return (
