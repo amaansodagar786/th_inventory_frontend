@@ -84,33 +84,34 @@ const Defective = () => {
 
 
   // Fetch Defective Records
-  // In the fetchDefectives function, update the data structure:
   useEffect(() => {
     const fetchDefectives = async () => {
       try {
         // Fetch defect finds
         const defectResponse = await axios.get(`${import.meta.env.VITE_API_URL}/defective/get-defectives`);
+        console.log("Raw backend defectives:", defectResponse.data);
+
         const defectFinds = defectResponse.data.filter(item => item.type === "defectFinds");
 
-
-        console.log("Raw backend response:", defectResponse.data);
-
-
-        // Map the backend response to include both id and defectiveId for compatibility
+        // Map the backend response properly
         const formattedDefectFinds = defectFinds.map(item => ({
           ...item,
-          id: item.defectiveId || item.id // Use defectiveId if available, fallback to id
+          id: item._id || item.id, // Use _id from MongoDB
+          defectiveId: item.defectiveNumber // Store the display number
         }));
 
         // Fetch restore records
         const restoreResponse = await axios.get(`${import.meta.env.VITE_API_URL}/defective/get-restore-defectives`);
-        const restoreDefects = restoreResponse.data;
+        console.log("Raw backend restores:", restoreResponse.data);
+
+        const restoreDefects = restoreResponse.data.map(item => ({
+          ...item,
+          id: item._id || item.id
+        }));
 
         setDefectiveItems(formattedDefectFinds);
         setRestoredItems(restoreDefects);
 
-        // Debug log to check the structure
-        console.log("Defective items:", formattedDefectFinds);
       } catch (error) {
         toast.error("Failed to fetch defective records");
         console.error("Error fetching defectives:", error);
@@ -338,21 +339,27 @@ const Defective = () => {
   };
 
   // Defective select handler for restore section
-  // Add this function to calculate remaining quantities
-  // Add this function to calculate remaining quantities
   const getRemainingQuantities = (defectiveId) => {
     if (!defectiveId) return {};
 
+    // Find the defective item
     const defectiveItem = defectiveItems.find(item =>
-      item.defectiveId === defectiveId || item.id === defectiveId
+      item._id === defectiveId || item.id === defectiveId
     );
 
-    if (!defectiveItem) return {};
+    if (!defectiveItem) {
+      console.log("Defective item not found for ID:", defectiveId);
+      return {};
+    }
+
+    console.log("Original defective item:", defectiveItem);
 
     // Calculate already restored quantities for this defective record
     const restoredForThisDefective = restoredItems.filter(
       restore => restore.defectiveReferenceId === defectiveId
     );
+
+    console.log("Restored items for this defective:", restoredForThisDefective);
 
     const remainingQuantities = {};
 
@@ -370,18 +377,23 @@ const Defective = () => {
       });
     });
 
+    console.log("Remaining quantities:", remainingQuantities);
     return remainingQuantities;
   };
 
+
   // Update the handleDefectiveSelect function
-  // Update the handleDefectiveSelect function
-  const handleDefectiveSelect = (selectedOption, setFieldValue) => {
+  const handleDefectiveSelect = async (selectedOption, setFieldValue) => {
     if (selectedOption) {
+      // Find the defective item using _id (MongoDB ID)
       const defectiveItem = defectiveItems.find(item =>
-        item.defectiveId === selectedOption.value || item.id === selectedOption.value
+        item._id === selectedOption.value || item.id === selectedOption.value
       );
 
       if (defectiveItem) {
+        console.log("Found defective item:", defectiveItem);
+
+        // Calculate remaining quantities
         const remainingQuantities = getRemainingQuantities(selectedOption.value);
 
         // Only include items that still have remaining quantity
@@ -396,19 +408,18 @@ const Defective = () => {
             maxQuantity: remainingQuantities[item.itemId] // Store max allowed
           }));
 
-        console.log("Selected defective item:", defectiveItem);
-        console.log("Remaining quantities:", remainingQuantities);
-        console.log("Items to set:", itemsWithRemaining);
+        console.log("Items to restore:", itemsWithRemaining);
 
-        setFieldValue("defectiveId", defectiveItem.defectiveId || defectiveItem.id);
+        // Set the defective reference ID
+        setFieldValue("defectiveId", defectiveItem._id || defectiveItem.id);
 
-        // Clear existing items first, then set new ones
-        setFieldValue("items", []);
-
-        // Use setTimeout to ensure the field array is properly updated
+        // Clear and set items - use timeout to ensure proper state update
         setTimeout(() => {
           setFieldValue("items", itemsWithRemaining);
         }, 0);
+      } else {
+        console.log("No defective item found for ID:", selectedOption.value);
+        toast.error("Defective item not found");
       }
     } else {
       setFieldValue("defectiveId", "");
@@ -737,21 +748,19 @@ const Defective = () => {
                               className={`react-select-container ${errors.defectiveId ? 'error' : ''}`}
                               classNamePrefix="react-select"
                               options={defectiveItems.map(item => ({
-                                value: item.defectiveId || item.id, // Use defectiveId if available
-                                label: `Defective #${item.defectiveNumber || item.defectiveId || item.id} - ${item.date}`
+                                value: item._id || item.id, // Use _id from MongoDB
+                                label: `Defective #${item.defectiveNumber} - ${item.date}`
                               }))}
                               onChange={(selectedOption) => handleDefectiveSelect(selectedOption, setFieldValue)}
                               value={defectiveItems.find(item =>
-                                (item.defectiveId === values.defectiveId) || (item.id === values.defectiveId)
+                                item._id === values.defectiveId || item.id === values.defectiveId
                               ) ? {
                                 value: values.defectiveId,
                                 label: `Defective #${defectiveItems.find(item =>
-                                  (item.defectiveId === values.defectiveId) || (item.id === values.defectiveId)
-                                )?.defectiveNumber || values.defectiveId
-                                  } - ${defectiveItems.find(item =>
-                                    (item.defectiveId === values.defectiveId) || (item.id === values.defectiveId)
-                                  )?.date
-                                  }`
+                                  item._id === values.defectiveId || item.id === values.defectiveId
+                                )?.defectiveNumber} - ${defectiveItems.find(item =>
+                                  item._id === values.defectiveId || item.id === values.defectiveId
+                                )?.date}`
                               } : null}
                               placeholder="Select Defective Reference"
                               isSearchable={true}

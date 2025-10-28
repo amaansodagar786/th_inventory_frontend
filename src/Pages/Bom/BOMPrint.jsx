@@ -46,7 +46,7 @@ const BOMPrint = ({ bom }) => {
       </table>
 
       <div className="footer-right">
-        <p><strong>For Techorses</strong></p>
+        <p><strong>For MANUFACTURING</strong></p>
         <p><strong>Authorised Signatory</strong></p>
       </div>
     </div>

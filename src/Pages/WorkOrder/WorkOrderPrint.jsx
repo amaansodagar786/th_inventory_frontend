@@ -155,7 +155,7 @@ const WorkOrderPrint = ({ workOrder }) => {
 
                 <div className="signature-section">
                     <div className="signature-box">
-                        <p>For Techorses</p>
+                        <p>For MANUFACTURING</p>
                         <div className="signature-line"></div>
                         <p>Authorized Signatory</p>
                     </div>

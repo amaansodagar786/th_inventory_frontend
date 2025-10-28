@@ -82,16 +82,16 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
         {/* Company GST and LUT details */}
         <div className="company-details">
           <div className="left-details">
-            <p><strong>GSTIN :</strong> 24AAAFF2996A1ZS</p>
+            <p><strong>GSTIN :</strong> 24AAAFF299....</p>
             <p><strong>State :</strong> Gujarat, Code: 24</p>
-            <p><strong>PAN No :</strong> AAAFF2996A</p>
+            <p><strong>PAN No :</strong> AAAFF29...</p>
           </div>
           <div className="middle-details">
             <p><strong>MICRO UNIT AS PER MSME RULES</strong></p>
-            <p><strong>UDYAM No:</strong> UDYAM-GJ-24-0020565</p>
+            <p><strong>UDYAM No:</strong> UDYAM-GJ-24-002....</p>
           </div>
           <div className="right-details">
-            <p><strong>LUT ARN No :</strong> AD240323034277D&nbsp;&nbsp;&nbsp;</p>
+            <p><strong>LUT ARN No :</strong> AD240323034....&nbsp;&nbsp;&nbsp;</p>
             <p><strong>From:</strong> 01/04/2025 <strong>To:</strong> 31/03/2026</p>
           </div>
         </div>
@@ -182,10 +182,10 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
               <p><strong>Contact:</strong> {transportMobile || 'N/A'}</p>
             </div>
             <div className="bank-details">
-              <p><strong>Bank Name:</strong> BANK OF BARODA</p>
-              <p><strong>Account No:</strong> 05730400000053</p>
-              <p><strong>Branch:</strong> GIDC MAKARPURA</p>
-              <p><strong>IFSC:</strong> BARBOINDMAK (0 Zero)</p>
+              <p><strong>Bank Name:</strong> BANK OF BAR..</p>
+              <p><strong>Account No:</strong> 0000000000</p>
+              <p><strong>Branch:</strong> BARODA</p>
+              <p><strong>IFSC:</strong> BARODA (0 Zero)</p>
             </div>
           </div>
           <div className="amount-details">
@@ -317,7 +317,7 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
             <p>Certified that particulars given above are true and correct and the amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer</p>
           </div>
           <div className="signature-box">
-            <p>For Ferro Tube And Forge Industry</p>
+            <p>For MANUFACTURING</p>
             <div className="signature-line"></div>
             <p>Authorized Signatory</p>
           </div>

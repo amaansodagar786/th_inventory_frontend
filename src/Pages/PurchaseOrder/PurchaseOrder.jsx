@@ -28,8 +28,8 @@ Prices are subject to change without notice.
 `;
 
 // Static addresses
-const CONSIGNEE_ADDRESS = "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)";
-const DELIVERY_ADDRESS = "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)";
+const CONSIGNEE_ADDRESS = "Vadodara - 391760, Gujarat (India)";
+const DELIVERY_ADDRESS = "Vadodara - 391760, Gujarat (India)";
 
 const PurchaseOrder = () => {
     const [showForm, setShowForm] = useState(false);
@@ -96,8 +96,8 @@ const PurchaseOrder = () => {
         }
 
         return {
-            ownerGST: "24AAAFF2996A1ZS",
-            ownerPAN: "AAAFF2996A",
+            ownerGST: "24AAAFF2....",
+            ownerPAN: "AAAFF29...",
             companyName: "",
             vendorId: "",
             vendorName: "",
@@ -106,7 +106,7 @@ const PurchaseOrder = () => {
             vendorContact: "",
             vendorEmail: "",
             shipName: "",
-            shipCompany: "Ferro Tube And Forge Industries",
+            shipCompany: "MANUFACTURING",
             shipPhone: "",
             consigneeAddress: CONSIGNEE_ADDRESS,
             deliveryAddress: DELIVERY_ADDRESS,
@@ -1645,7 +1645,7 @@ const PurchaseOrder = () => {
                                             <div className="form-group-row">
                                                 <div className="field-wrapper">
                                                     <label>Company Name</label>
-                                                    <Field name="shipCompany" readOnly value="Ferro Tube And Forge Industry" />
+                                                    <Field name="shipCompany" readOnly value="MANUFACTURING" />
                                                 </div>
                                                 <div className="field-wrapper">
                                                     <label>Contact Person</label>

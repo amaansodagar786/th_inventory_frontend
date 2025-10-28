@@ -16,24 +16,26 @@
   .company-details {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; // Added for vertical alignment
+    align-items: flex-start;
     margin-bottom: 10px;
     padding-bottom: 5px;
     page-break-inside: avoid;
 
     .left-details,
     .right-details {
-      width: 35%; // Added fixed width for alignment
+      width: 35%;
+
       p {
         margin: 3px 0;
-        text-align: left; // Changed to left alignment
+        text-align: left;
         font-size: 11px;
       }
     }
 
     .middle-details {
-      width: 30%; // Added fixed width for alignment
+      width: 30%;
       text-align: center;
+
       h3 {
         margin: 0;
         font-size: 16px;
@@ -43,20 +45,21 @@
 
     .right-details {
       p {
-        text-align: right; // Right alignment for right details
+        text-align: right;
       }
     }
   }
 
   .invoice-po-section {
     display: flex;
-    justify-content: space-between; // Space between for left and right alignment
+    justify-content: space-between;
     margin-bottom: 15px;
     padding-bottom: 5px;
     border-bottom: 1px solid #000;
     page-break-inside: avoid;
 
-    .po-details, .po-date {
+    .po-details,
+    .po-date {
       p {
         margin: 3px 0;
         font-weight: bold;
@@ -154,11 +157,13 @@
   .notes-summary-section {
     display: flex;
     justify-content: space-between;
+    // margin-top: 2px; 
     margin-bottom: 20px;
     gap: 4%;
     page-break-inside: avoid;
 
     .notes-column {
+      margin-top: 10px;
       width: 48%;
       box-sizing: border-box;
 
@@ -169,6 +174,10 @@
         border-radius: 5px;
         margin-bottom: 10px;
         font-size: 11px;
+
+        /* FIX for border breaking across pages */
+        break-inside: avoid;
+        page-break-inside: avoid;
 
         h4 {
           margin: 0 0 5px 0;
@@ -190,28 +199,72 @@
       box-sizing: border-box;
 
       .amount-details {
-        table {
+        .amount-table {
           width: 100%;
           border-collapse: collapse;
+          table-layout: fixed;
+          /* enforce column widths from colgroup */
+          box-sizing: border-box;
+
+          col.col-label {
+            width: 65%;
+          }
+
+          col.col-amount {
+            width: 35%;
+          }
+
+          tbody tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
 
           td {
             padding: 5px;
-            text-align: right;
             font-size: 11px;
-
-            &:first-child {
-              text-align: left;
-              font-weight: bold;
-            }
+            vertical-align: middle;
+            box-sizing: border-box;
           }
 
+          /* Label column */
+          td:first-child {
+            text-align: left;
+            font-weight: 600;
+            padding-right: 8px;
+          }
+
+          /* Amount column */
+          td:last-child {
+            text-align: right;
+            font-weight: 400;
+            white-space: nowrap;
+            /* prevents wrapping shifting layout */
+            /* ensure numbers align visually: use tabular nums if desired */
+            font-variant-numeric: tabular-nums;
+          }
+
+          /* Total row - uses same columns but bolded */
           .total-row {
             border-top: 1px solid #000;
-            font-weight: bold;
+
+            td {
+              font-weight: 700;
+              padding-top: 8px;
+              /* visual separation */
+            }
           }
         }
       }
     }
+
+    .amount-table tr:last-child td {
+      border-top: 1px solid #000;
+      font-weight: bold !important;
+      padding-top: 8px;
+    }
+
+
+
   }
 
   .certification-section {
@@ -259,11 +312,14 @@
 
 /* ----------------- PRINT RULES ----------------- */
 @media print {
+
   html,
   body {
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   @page {
@@ -298,5 +354,20 @@
 
   .items-table {
     page-break-inside: auto;
+  }
+
+  /* FIX for notes section border breaking */
+  .notes-column .notes-section,
+  .notes-column .terms-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-before: avoid;
+    break-after: avoid;
+  }
+
+  /* Additional fix to prevent border fragments */
+  .notes-summary-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

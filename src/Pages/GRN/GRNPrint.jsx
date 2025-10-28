@@ -105,7 +105,7 @@ const GRNPrint = ({ grn }) => {
                 </div>
 
                 <div className="footer-box">
-                    <p className="right">For Techorses</p>
+                    <p className="right">For MANUFACTURING</p>
                     <p className="right"><strong>Authorised Signatory</strong></p>
                     <p className="left note">If you have any questions about this GRN, please contact</p>
                 </div>

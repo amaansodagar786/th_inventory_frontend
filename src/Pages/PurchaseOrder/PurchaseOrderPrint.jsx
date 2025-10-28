@@ -17,15 +17,15 @@ const PurchaseOrderPrint = ({ po }) => {
         {/* Company GST and LUT details - fixed alignment */}
         <div className="company-details">
           <div className="left-details">
-            <p><strong>GSTIN :</strong> 24AAAFF2996A1ZS</p>
+            <p><strong>GSTIN :</strong> 24AAAF...</p>
             <p><strong>State :</strong> Gujarat, Code: 24</p>
-            <p><strong>PAN No :</strong> AAAFF2996A</p>
+            <p><strong>PAN No :</strong> AAAFF....</p>
           </div>
           <div className="middle-details">
             <h3>PURCHASE ORDER</h3>
           </div>
           <div className="right-details">
-            <p><strong>LUT ARN No :&nbsp;&nbsp;</strong> AD240224050202C</p>
+            <p><strong>LUT ARN No :&nbsp;&nbsp;</strong> AD240224050...</p>
             <p><strong>From:</strong> 01/04/2025 <strong>To:</strong> 31/03/2026</p>
           </div>
         </div>
@@ -53,9 +53,9 @@ const PurchaseOrderPrint = ({ po }) => {
           </div>
           <div className="party-card">
             <h3>Shipping Details:</h3>
-            <p><strong>{po.shipCompany || "Ferro Tube And Forge Industries"}</strong></p>
+            <p><strong>{po.shipCompany || "MANUFACTURING"}</strong></p>
             <p>{po.shipName || po.vendorName}</p>
-            <p>{po.deliveryAddress || "547, G.I.D.C. Estate, Vaghodia, Vadodara - 391760, Gujarat (India)"}</p>
+            <p>{po.deliveryAddress || "Vadodara Gujarat (India)"}</p>
             <p>Contact: {po.shipPhone || po.vendorContact}</p>
           </div>
         </div>
@@ -123,36 +123,61 @@ const PurchaseOrderPrint = ({ po }) => {
           </div>
 
           {/* Summary on the right */}
+          {/* Summary on the right */}
           <div className="summary-column">
             <div className="amount-details">
-              <table>
+              <table className="amount-table">
+                <colgroup>
+                  <col className="col-label" style={{ width: "65%" }} />
+                  <col className="col-amount" style={{ width: "35%" }} />
+                </colgroup>
                 <tbody>
-                  <tr><td>Subtotal:</td><td>₹{po.subtotal.toFixed(2)}</td></tr>
+                  <tr>
+                    <td>Subtotal:</td>
+                    <td>₹{po.subtotal.toFixed(2)}</td>
+                  </tr>
 
                   {hasDiscount && (
                     <>
-                      <tr><td>Discount ({po.discount}%):</td><td>-₹{po.discountAmount.toFixed(2)}</td></tr>
-                      <tr><td>Discounted Subtotal:</td><td>₹{po.discountedSubtotal.toFixed(2)}</td></tr>
+                      <tr>
+                        <td>Discount ({po.discount}%):</td>
+                        <td>-₹{po.discountAmount.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td>Discounted Subtotal:</td>
+                        <td>₹{po.discountedSubtotal.toFixed(2)}</td>
+                      </tr>
                     </>
                   )}
 
                   {isIntraState ? (
                     <>
-                      <tr><td>CGST ({taxSlab / 2}%):</td><td>₹{po.cgst.toFixed(2)}</td></tr>
-                      <tr><td>SGST ({taxSlab / 2}%):</td><td>₹{po.sgst.toFixed(2)}</td></tr>
+                      <tr>
+                        <td>CGST ({taxSlab / 2}%):</td>
+                        <td>₹{po.cgst.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td>SGST ({taxSlab / 2}%):</td>
+                        <td>₹{po.sgst.toFixed(2)}</td>
+                      </tr>
                     </>
                   ) : (
-                    <tr><td>IGST ({taxSlab}%):</td><td>₹{po.igst?.toFixed(2) || ((po.total - po.subtotal).toFixed(2))}</td></tr>
+                    <tr>
+                      <td>IGST ({taxSlab}%):</td>
+                      <td>₹{po.igst?.toFixed(2) || (po.total - po.subtotal).toFixed(2)}</td>
+                    </tr>
                   )}
 
-                  <tr className="total-row">
-                    <td><strong>Total:</strong></td>
-                    <td><strong>₹{po.total.toFixed(2)}</strong></td>
+                  {/* <tr className="total-row">  */}
+                  <tr >
+                    <td>Total:</td>
+                    <td>₹{po.total.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
+
         </div>
 
         {/* Footer section - same content, new style */}
@@ -164,7 +189,7 @@ const PurchaseOrderPrint = ({ po }) => {
 
           {/* Signature on the right */}
           <div className="signature-box">
-            <p>For Ferro Tube & Forge Industries</p>
+            <p>For MANUFACTURING</p>
             <div className="signature-line"></div>
             <p>Authorised Signatory</p>
           </div>
