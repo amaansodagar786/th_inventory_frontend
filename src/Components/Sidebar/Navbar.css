@@ -111,14 +111,17 @@
 #sidebar:not(.hide) .side-menu li a.active {
   background: #dfeafb;
   color: var(--active-text);
-  margin-left: 10px; /* Added space from left edge */
+  margin-left: 10px;
+  /* Added space from left edge */
   padding-left: 24px;
   font-weight: 600;
   box-shadow: 4px 0 10px rgba(0, 0, 0, 0.06);
-  border-radius: 25px 0 0 25px; /* left pill */
+  border-radius: 25px 0 0 25px;
+  /* left pill */
   position: relative;
   z-index: 1;
-  width: calc(100% - 10px); /* Adjust width to account for margin */
+  width: calc(100% - 10px);
+  /* Adjust width to account for margin */
 }
 
 /* Right side curve blend effect - only for expanded sidebar */
@@ -389,4 +392,271 @@
   #sidebar .sidebar-logout-btn span {
     display: inline;
   }
+}
+
+
+/* ========== NEW ADDITIONS ONLY ========== */
+
+/* Logo Image Styles */
+.logoImage {
+  height: 35px;
+  width: auto;
+  object-fit: contain;
+  transform: scale(3);
+  margin-left: 20px;
+}
+
+/* Hide text logo when using image logo */
+.logoText {
+  display: none;
+}
+
+/* User Info Section in Sidebar */
+.user-info-section {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.user-role {
+  font-size: 12px;
+  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.permissions-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+/* Hide user info when sidebar collapsed */
+#sidebar.hide .user-info-section {
+  display: none;
+}
+
+/* No Permissions Message */
+.no-permissions-message {
+  text-align: center;
+  padding: 30px 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.no-permissions-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.no-permissions-message p {
+  margin: 0 0 5px 0;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.no-permissions-message small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Hide no permissions message when sidebar collapsed */
+#sidebar.hide .no-permissions-message {
+  display: none;
+}
+
+/* Navigation Header Updates */
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #333;
+}
+
+.admin-badge {
+  background: #ff6b6b;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Profile Section in Header */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-info {
+  text-align: right;
+  display: none;
+}
+
+.profile-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.profile-role {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Logout icon only in horizontal navbar */
+.logout-icon-only .button-text {
+  display: none !important;
+}
+
+/* Enhanced logout button in sidebar */
+.logout-menu-item {
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.sidebar-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  margin: 0 10px;
+}
+
+.sidebar-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Hide logout text when sidebar collapsed */
+#sidebar.hide .sidebar-logout-btn span {
+  display: none;
+}
+
+#sidebar.hide .sidebar-logout-btn {
+  justify-content: center;
+  padding: 10px;
+  width: auto;
+  margin: 0 5px;
+}
+
+/* Responsive Design */
+@media screen and (min-width: 768px) {
+  .profile-info {
+    display: block;
+  }
+
+  .mobile-user-info {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .user-info-section {
+    padding: 12px 15px;
+  }
+
+  .user-avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+
+  .user-role {
+    font-size: 11px;
+  }
+
+  .profile {
+    gap: 8px;
+  }
+
+  .mobile-user-info {
+    font-size: 13px;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 600px) {
+  .user-info-section {
+    display: flex !important;
+  }
+
+  .no-permissions-message {
+    display: block !important;
+  }
+
+  .sidebar-logout-btn span {
+    display: inline !important;
+  }
+
+  .sidebar-logout-btn {
+    justify-content: flex-start !important;
+    padding: 10px 14px !important;
+    width: calc(100% - 20px) !important;
+    margin: 0 10px !important;
+  }
+}
+
+/* Enhanced hover effects for menu items */
+.side-menu li a:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.side-menu li a:hover:not(.active) .menu-icon {
+  color: #fff;
 }

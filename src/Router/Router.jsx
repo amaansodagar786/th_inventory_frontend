@@ -1,3 +1,4 @@
+// src/Router/Router.js - ADD ADMIN ROUTE
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Home from "../Pages/Home/Home";
@@ -14,7 +15,8 @@ import Login from "../Pages/Authentication/Login/Login";
 import ProtectedRoute from "../Components/Protected/ProtectedRoute";
 import WorkOrder from "../Pages/WorkOrder/WorkOrder";
 import Defective from "../Pages/Defective/Defective";
-
+import Report from "../Pages/Reports/Reports";
+import Admin from "../Pages/Admin/Admin"; // ADD THIS IMPORT
 import Footer from "../Components/Footer/Footer";
 
 const Router = () => {
@@ -23,24 +25,14 @@ const Router = () => {
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100vh' // This ensures the container takes at least full viewport height
+        minHeight: '100vh'
       }}>
-        <div style={{
-          flex: 1 // This makes the content area grow and push footer down
-        }}>
-
+        <div style={{ flex: 1 }}>
           <Routes>
-            {/* <Route path="/" element={<Home />} />  */}
-            {/* <Route path="/register" element={<Register />} />  */}
+            <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
 
-
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            } />
-            {/* <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} /> */}
+            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
             <Route path="/customer" element={<ProtectedRoute><Customer /></ProtectedRoute>} />
             <Route path="/vendor" element={<ProtectedRoute><Vendor /></ProtectedRoute>} />
             <Route path="/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
@@ -51,7 +43,8 @@ const Router = () => {
             <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
             <Route path="/work-order" element={<ProtectedRoute><WorkOrder /></ProtectedRoute>} />
             <Route path="/defective" element={<ProtectedRoute><Defective /></ProtectedRoute>} />
-
+            <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} /> {/* ADD THIS ROUTE */}
           </Routes>
         </div>
         <Footer />
