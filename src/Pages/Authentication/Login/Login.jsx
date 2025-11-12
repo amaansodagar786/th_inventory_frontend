@@ -129,7 +129,7 @@ const Login = () => {
             <h1 className="welcome-title">Welcome Back!</h1>
             <div className="divider" />
             <p className="welcome-desc">
-              Access powerful tools for inventory control, from GRNs and BOMs to work orders and sales. Log in to keep your business operations organized and efficient.
+              Access powerful tools for inventory control, from GRNs and BOMs to work orders and sales. Log in to keep your business operations organized and efficient!.
             </p>
 
             {/* Show different message based on user status */}
