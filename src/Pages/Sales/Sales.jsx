@@ -2145,7 +2145,7 @@ const Sales = () => {
                 <th>Company Name</th>
                 <th>Receiver</th>
                 <th>Total</th>
-                <th>Upload</th> {/* New column for uploads */}
+                {/* <th>Upload</th>  */}
               </tr>
             </thead>
             <tbody>
@@ -2167,7 +2167,7 @@ const Sales = () => {
                     <td>{invoice.receiver.companyName}</td>
                     <td>{invoice.receiver.name}</td>
                     <td>₹{invoice.total.toFixed(2)}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    {/* <td onClick={(e) => e.stopPropagation()}>
                       <div className="upload-cell">
                         {uploadingFiles[invoice.invoiceNumber] ? (
                           <div className="uploading-spinner">
@@ -2196,7 +2196,7 @@ const Sales = () => {
                           </>
                         )}
                       </div>
-                    </td>
+                    </td> */}
                   </tr>
                 ))
               )}
