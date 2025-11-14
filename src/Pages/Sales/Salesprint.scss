@@ -10,13 +10,12 @@
   box-sizing: border-box;
   position: relative;
 
-
   .main-content {
     position: relative;
     z-index: 1;
   }
 
-  /* Company GST and LUT details */
+  /* Company details (unchanged) */
   .company-details {
     display: flex;
     justify-content: space-between;
@@ -27,7 +26,7 @@
 
     .left-details,
     .right-details {
-      width: 32%; // Reduced from 35% to 32% to balance the center
+      width: 32%;
 
       p {
         margin: 3px 0;
@@ -37,7 +36,7 @@
     }
 
     .middle-details {
-      width: 36%; // Increased from 30% to 36% to properly center the content
+      width: 36%;
       text-align: center;
 
       p {
@@ -57,6 +56,7 @@
     }
   }
 
+  /* Invoice header (unchanged) */
   .invoice-po-section {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
@@ -67,7 +67,6 @@
     page-break-inside: avoid;
 
     .invoice-details {
-      grid-column: 1;
       text-align: left;
 
       p {
@@ -77,7 +76,6 @@
     }
 
     .invoice-title {
-      grid-column: 2;
       text-align: center;
 
       h3 {
@@ -88,21 +86,16 @@
     }
 
     .po-details {
-      grid-column: 3;
       text-align: right;
 
       p {
         margin: 3px 0;
         font-weight: bold;
-
-        &:empty::before {
-          content: " ";
-          visibility: hidden;
-        }
       }
     }
   }
 
+  /* Party cards (unchanged) */
   .party-section {
     display: flex;
     justify-content: space-between;
@@ -132,6 +125,7 @@
     }
   }
 
+  /* Items table (unchanged) */
   .items-container {
     page-break-inside: avoid;
     margin-bottom: 20px;
@@ -157,12 +151,10 @@
       background: #f5f5f5;
       font-weight: bold;
       text-align: center;
-      page-break-after: avoid;
     }
 
     tr {
       page-break-inside: avoid;
-      break-inside: avoid;
     }
 
     th.sr-no,
@@ -173,16 +165,13 @@
 
     td.description-cell {
       white-space: normal;
-      /* allow wrapping */
       overflow: visible;
-      /* don’t cut off text */
       text-overflow: unset;
-      /* remove ellipsis */
       word-break: break-word;
-      /* break long words if needed */
     }
   }
 
+  /* Summary (unchanged) */
   .summary-section {
     display: flex;
     justify-content: space-between;
@@ -192,7 +181,6 @@
 
     .transport-bank-details {
       width: 48%;
-      box-sizing: border-box;
 
       .transport-details,
       .bank-details {
@@ -215,7 +203,6 @@
 
     .amount-details {
       width: 48%;
-      box-sizing: border-box;
 
       table {
         width: 100%;
@@ -239,15 +226,27 @@
     }
   }
 
+  /* ====================== NOTES + QR (FIXED WIDTH for NOTES) ====================== */
   .notes-qr-section {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    /* <- important: prevent wrapping, keep both in same row */
+    gap: 10px;
     margin-bottom: 10px;
     min-height: 120px;
     page-break-inside: avoid;
 
+    /* NOTES: fixed 35% width always, long text wraps inside this box */
     .notes-section {
-      width: 65%;
+      flex: 0 0 40%;
+      /* fixed 35% */
+      max-width: 40%;
+      /* strictly cap at 35% */
+      box-sizing: border-box;
+      padding-right: 6px;
+      /* small breathing room */
 
       .extra-notes,
       .terms-section {
@@ -262,19 +261,100 @@
           white-space: pre-wrap;
           font-family: inherit;
           font-size: 11px;
+          word-break: break-word;
+          /* ensures long words wrap */
+          overflow-wrap: anywhere;
+          /* helps with very long strings */
+          line-height: 1.4;
         }
       }
     }
 
-    .qr-code {
-      width: 30%;
-      text-align: center;
-      padding: 10px;
+    /* QR/E-INVOICE: use remaining width (65%) and center qr */
+    .qr-image-section {
+      flex: 1 1 50%;
+      /* take remaining width */
+      max-width: 50%;
       box-sizing: border-box;
-      align-self: flex-start;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      /* horizontal centering of QR */
+      justify-content: flex-start;
+      text-align: center;
+      padding: 10px 0 10px 10px;
+
+      /* E-invoice details (IRN / Ack lines) */
+      .einvoice-details-simple {
+        width: 100%;
+        text-align: left;
+        margin-bottom: 10px;
+
+        .einvoice-lines {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          .detail-line {
+            display: block;
+            /* use block for natural text wrapping */
+            font-size: 10px;
+            line-height: 1.4;
+            color: #333;
+            word-break: break-all;
+            /* forces breaking of long strings */
+            overflow-wrap: anywhere;
+            /* handles long hashes */
+            white-space: normal;
+            /* allows wrapping */
+            font-family: monospace;
+            /* consistent alignment */
+
+            .label {
+              // font-weight: 600; 
+              color: #000;
+              display: inline;
+              /* inline label stays on same line */
+              margin-right: 4px;
+              /* small spacing before IRN value */
+              white-space: normal;
+              /* allow wrapping */
+            }
+
+            /* optional - if you decide to use value separately later */
+            .value {
+              display: inline;
+              /* inline with label */
+              word-break: break-all;
+              overflow-wrap: anywhere;
+              white-space: normal;
+            }
+          }
+
+        }
+      }
+
+      .qr-code {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        /* center horizontally inside qr-area */
+        align-items: center;
+        width: 100%;
+
+        img {
+          display: block;
+          margin: 0 auto;
+          width: 100px;
+          height: 100px;
+          border: 1px solid #ccc;
+          object-fit: contain;
+        }
+      }
     }
   }
 
+  /* Certification + signature (unchanged) */
   .certification-section {
     display: flex;
     justify-content: space-between;
@@ -313,45 +393,76 @@
   }
 }
 
-/* ----------------- PRINT RULES (this is the fix) ----------------- */
+/* ----------------- PRINT RULES ----------------- */
 @media print {
 
+  /* Remove default margins added by browsers */
   html,
   body {
     margin: 0 !important;
     padding: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: #fff !important;
   }
 
-  /* Don’t add top/bottom margins here; we’ll add them via header/footer groups */
   @page {
     size: A4 portrait;
-    // margin: 0 10mm; 
+    margin: 0 !important;
+    /* Remove all print margins */
   }
 
-  /* left/right = 10mm, top/bottom = 0 */
-
-  /* Make the wrapper a table so header/footer groups repeat each page */
+  /* Keep everything tightly within one page */
   #sales-pdf {
-    width: auto !important;
-    /* fill printable area */
-    max-width: none !important;
+    width: 210mm !important;
+    // height: 297mm !important;
+    /* exact A4 height */
     margin: 0 auto !important;
     padding: 0 !important;
     box-shadow: none !important;
-
-    display: table;
-    border-collapse: collapse;
-    table-layout: fixed;
+    background: #fff !important;
+    overflow: hidden !important;
+    position: relative !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
   }
 
-  /* repeat on every printed page & reserve space */
-
-
-
-  /* the real content flows as table rows between header & footer on each page */
   #sales-pdf .main-content {
-    display: table-row-group;
-    margin: 0;
-    /* no extra top margin needed */
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Allow safe sections to break naturally when needed */
+  .company-details,
+  .invoice-po-section,
+  .party-section,
+  .items-container,
+  .summary-section,
+  .notes-qr-section,
+  .certification-section {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  /* Ensure e-invoice details stay visible and crisp */
+  .einvoice-details-simple {
+    background: transparent !important;
+    border: none !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Ensure wrapping works for long text */
+  .notes-section p,
+  .notes-section pre,
+  .detail-line {
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import html2pdf from "html2pdf.js";
@@ -59,14 +59,113 @@ const Sales = () => {
   const [showLoader, setShowLoader] = useState(false);
   const loaderTimeoutRef = useRef(null);
 
+  // UPLOAD STATES - ADDED
   const [uploadingFiles, setUploadingFiles] = useState({});
-
+  const [showUploadModal, setShowUploadModal] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const fileInputRefs = useRef({});
-
 
   // Add these near your other state declarations
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // BULK UPLOAD FUNCTION - ADDED
+  const handleBulkUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      toast.error("Please upload an Excel file (.xlsx or .xls)");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/sales/bulk-upload`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      const data = response.data;
+
+      // Show detailed results
+      if (data.errors && data.errors.length > 0) {
+        const errorCount = data.errors.length;
+
+        toast.success(
+          `✅ ${data.insertedCount} Sales Invoices uploaded successfully\n❌ ${errorCount} errors found`,
+          {
+            autoClose: 8000,
+            closeOnClick: false,
+          }
+        );
+
+        // Log all errors to console for debugging
+        console.log('📋 Sales Bulk Upload Results:');
+        console.log(`✅ Successfully uploaded: ${data.insertedCount}`);
+        console.log(`📊 Total Invoices processed: ${data.totalInvoices}`);
+        console.log(`📝 Total rows: ${data.totalRows}`);
+        console.log('🎯 Successful Invoices:', data.invoiceNumbers);
+        console.log('❌ Errors:', data.errors);
+
+        // Show first 3 errors as warnings
+        if (errorCount > 0) {
+          setTimeout(() => {
+            const firstErrors = data.errors.slice(0, 3);
+            firstErrors.forEach(error => {
+              toast.warning(error, { autoClose: 6000 });
+            });
+
+            if (errorCount > 3) {
+              toast.info(`...and ${errorCount - 3} more errors. Check console for details.`, {
+                autoClose: 8000
+              });
+            }
+          }, 1000);
+        }
+      } else {
+        toast.success(`🎉 All ${data.insertedCount} sales invoices uploaded successfully!`);
+      }
+
+      // Refresh Sales data
+      await fetchSalesData();
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading sales invoices:', error);
+
+      if (error.response?.data?.errors) {
+        const errorData = error.response.data;
+        toast.error(
+          `Upload completed with issues. ${errorData.insertedCount || 0} Invoices uploaded, ${errorData.errors.length} errors. Check console for details.`,
+          { autoClose: 8000 }
+        );
+        console.log('Upload errors:', errorData.errors);
+      } else {
+        toast.error(error.response?.data?.message || 'Error uploading sales invoices');
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // TRIGGER FILE INPUT - ADDED
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -533,14 +632,6 @@ const Sales = () => {
     ];
   };
 
-
-
-
-
-
-
-
-
   const handleSubmit = async (values, { resetForm }) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -732,9 +823,6 @@ const Sales = () => {
     }
   };
 
-
-
-
   const handleExportExcel = () => {
     // Use filteredInvoices instead of invoices when search is applied
     const dataToExport = filteredInvoices.length > 0 ? filteredInvoices : invoices;
@@ -860,7 +948,6 @@ const Sales = () => {
     toast.success(`Exported ${dataToExport.length} invoices with detailed information`);
   };
 
-
   const handleFileUpload = async (invoice, event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -982,8 +1069,6 @@ const Sales = () => {
       toast.error(error.response?.data?.message || "Error deleting invoice");
     }
   };
-
-
 
   const InvoiceModal = ({ invoice, onClose, onExport, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -1673,11 +1758,291 @@ const Sales = () => {
     );
   };
 
+  // UPLOAD MODAL COMPONENT - ADDED
+  const UploadModal = React.memo(({ invoice, onClose, onUploadComplete }) => {
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadingExcel, setUploadingExcel] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState({
+      image: invoice.imageUrl ? '✅ Image already uploaded' : '',
+      excel: ''
+    });
 
+    const imageInputRef = useRef(null);
+    const excelInputRef = useRef(null);
+
+    // Memoize handlers to prevent unnecessary re-renders
+    const handleImageUpload = useCallback(async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+
+      setUploadingImage(true);
+      setUploadStatus(prev => ({ ...prev, image: '📤 Uploading image...' }));
+
+      try {
+        // Get presigned URL from backend
+        const presignedResponse = await axios.post(
+          `${import.meta.env.VITE_API_URL}/s3/sales-presigned-url`,
+          {
+            invoiceNumber: invoice.invoiceNumber,
+            fileType: file.type
+          }
+        );
+
+        const { uploadUrl, fileUrl } = presignedResponse.data;
+
+        // Upload file to S3
+        await axios.put(uploadUrl, file, {
+          headers: {
+            "Content-Type": file.type
+          }
+        });
+
+        // Save image URL to database
+        await axios.put(
+          `${import.meta.env.VITE_API_URL}/sales/update-sale-image/${invoice.invoiceNumber}`,
+          { imageUrl: fileUrl }
+        );
+
+        setUploadStatus(prev => ({ ...prev, image: '✅ Image uploaded successfully!' }));
+        onUploadComplete('image', fileUrl);
+        toast.success('🎉 Image uploaded successfully!');
+
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        setUploadStatus(prev => ({ ...prev, image: '❌ Image upload failed' }));
+        toast.error('Failed to upload image');
+      } finally {
+        setUploadingImage(false);
+      }
+    }, [invoice.invoiceNumber, onUploadComplete]);
+
+    const handleExcelUpload = useCallback(async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.name.match(/\.(xlsx|xls)$/)) {
+        toast.error('Please select an Excel file (.xlsx or .xls)');
+        return;
+      }
+
+      setUploadingExcel(true);
+      setUploadStatus(prev => ({ ...prev, excel: '📤 Processing Excel file...' }));
+
+      try {
+        const formData = new FormData();
+        formData.append('excelFile', file);
+
+        const response = await axios.put(
+          `${import.meta.env.VITE_API_URL}/sales/update-einvoice-details/${invoice.invoiceNumber}`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        const { ackDate, ackNo, irn } = response.data.data;
+        setUploadStatus(prev => ({
+          ...prev,
+          excel: '✅ E-invoice details updated successfully!'
+        }));
+
+        onUploadComplete('excel', { ackDate, ackNo, irn });
+        toast.success('📊 E-invoice details updated successfully!');
+
+      } catch (error) {
+        console.error('Error uploading Excel:', error);
+        setUploadStatus(prev => ({ ...prev, excel: '❌ Excel upload failed' }));
+        toast.error(error.response?.data?.message || 'Failed to process Excel file');
+      } finally {
+        setUploadingExcel(false);
+      }
+    }, [invoice.invoiceNumber, onUploadComplete]);
+
+    const triggerImageInput = useCallback(() => {
+      imageInputRef.current?.click();
+    }, []);
+
+    const triggerExcelInput = useCallback(() => {
+      excelInputRef.current?.click();
+    }, []);
+
+    // Memoize expensive computations
+    const hasEInvoiceDetails = useMemo(() =>
+      invoice.irn || invoice.ackNo || invoice.ackDate,
+      [invoice.irn, invoice.ackNo, invoice.ackDate]
+    );
+
+    return (
+      <div className="upload-modal-overlay" onClick={onClose}>
+        <div className="upload-modal-content" onClick={e => e.stopPropagation()}>
+          <div className="upload-modal-header">
+            <h3>Upload Files for Invoice: {invoice.invoiceNumber}</h3>
+            <button className="upload-modal-close" onClick={onClose}>
+              &times;
+            </button>
+          </div>
+
+          <div className="upload-modal-body">
+            {/* Show uploaded image preview if exists */}
+            {invoice.imageUrl && (
+              <div className="uploaded-image-preview">
+                <h4>📷 Currently Uploaded Image</h4>
+                <img
+                  src={invoice.imageUrl}
+                  alt="Uploaded invoice"
+                  className="preview-image"
+                  loading="lazy" // Lazy load image for better performance
+                />
+                <p className="preview-note">You can upload a new image to replace this one</p>
+              </div>
+            )}
+
+            {/* Image Upload Section */}
+            <div className="upload-section">
+              <h4>
+                {invoice.imageUrl ? '🔄 Update Invoice Image' : '📷 Upload Invoice Image'}
+              </h4>
+              <p>
+                {invoice.imageUrl
+                  ? 'Upload a new scanned copy or photo to replace current image'
+                  : 'Upload scanned copy or photo of the invoice'
+                }
+              </p>
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+              <button
+                className="upload-btn image-upload-btn"
+                onClick={triggerImageInput}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? (
+                  <>
+                    <FaSpinner className="spinner" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <FaUpload />
+                    {invoice.imageUrl ? 'Choose New Image' : 'Choose Image'}
+                  </>
+                )}
+              </button>
+              {uploadStatus.image && (
+                <div className={`upload-status ${uploadStatus.image.includes('✅') ? 'success' : uploadStatus.image.includes('❌') ? 'error' : 'info'}`}>
+                  {uploadStatus.image}
+                </div>
+              )}
+            </div>
+
+            <div className="upload-divider">
+              <span>AND / OR</span>
+            </div>
+
+            {/* Excel Upload Section */}
+            <div className="upload-section">
+              <h4>📊 Upload E-Invoice Excel</h4>
+              <p>Upload Excel file with IRN, Ack No, and Ack Date details</p>
+              <input
+                type="file"
+                ref={excelInputRef}
+                onChange={handleExcelUpload}
+                accept=".xlsx, .xls"
+                style={{ display: 'none' }}
+              />
+              <button
+                className="upload-btn excel-upload-btn"
+                onClick={triggerExcelInput}
+                disabled={uploadingExcel}
+              >
+                {uploadingExcel ? (
+                  <>
+                    <FaSpinner className="spinner" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <FaFileExcel />
+                    Choose Excel File
+                  </>
+                )}
+              </button>
+              {uploadStatus.excel && (
+                <div className={`upload-status ${uploadStatus.excel.includes('✅') ? 'success' : uploadStatus.excel.includes('❌') ? 'error' : 'info'}`}>
+                  {uploadStatus.excel}
+                </div>
+              )}
+            </div>
+
+            {/* Show e-invoice details if already uploaded */}
+            {hasEInvoiceDetails && (
+              <div className="existing-einvoice-details">
+                <h4>📋 Current E-Invoice Details</h4>
+                <div className="einvoice-details-grid">
+                  {invoice.irn && (
+                    <div className="detail-item">
+                      <span className="label">IRN:</span>
+                      <span className="value">{invoice.irn}</span>
+                    </div>
+                  )}
+                  {invoice.ackNo && (
+                    <div className="detail-item">
+                      <span className="label">Ack No:</span>
+                      <span className="value">{invoice.ackNo}</span>
+                    </div>
+                  )}
+                  {invoice.ackDate && (
+                    <div className="detail-item">
+                      <span className="label">Ack Date:</span>
+                      <span className="value">{invoice.ackDate}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="preview-note">Upload new Excel file to update these details</p>
+              </div>
+            )}
+          </div>
+
+          <div className="upload-modal-footer">
+            <button className="close-btn" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  });
 
   return (
     <Navbar>
       <ToastContainer position="top-center" autoClose={3000} />
+
+      {/* BULK UPLOAD INPUT - ADDED */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleBulkUpload}
+        accept=".xlsx, .xls"
+        style={{ display: 'none' }}
+      />
+
       <div className="main">
         <div className="page-header">
           <h2>Tax Invoices</h2>
@@ -1692,6 +2057,15 @@ const Sales = () => {
               />
             </div>
             <div className="action-buttons-group">
+              {/* BULK UPLOAD BUTTON - ADDED */}
+              <button
+                className="bulk-upload-btn"
+                onClick={triggerFileInput}
+                disabled={isUploading}
+              >
+                <FaUpload />
+                {isUploading ? "Uploading..." : "Bulk Upload"}
+              </button>
               <button className="export-all-btn" onClick={handleExportExcel}>
                 <FaFileExcel /> Export All
               </button>
@@ -2145,7 +2519,8 @@ const Sales = () => {
                 <th>Company Name</th>
                 <th>Receiver</th>
                 <th>Total</th>
-                {/* <th>Upload</th>  */}
+                {/* UPLOAD COLUMN - ADDED */}
+                <th>Upload</th>
               </tr>
             </thead>
             <tbody>
@@ -2167,36 +2542,18 @@ const Sales = () => {
                     <td>{invoice.receiver.companyName}</td>
                     <td>{invoice.receiver.name}</td>
                     <td>₹{invoice.total.toFixed(2)}</td>
-                    {/* <td onClick={(e) => e.stopPropagation()}>
+                    {/* UPLOAD CELL - ADDED */}
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div className="upload-cell">
-                        {uploadingFiles[invoice.invoiceNumber] ? (
-                          <div className="uploading-spinner">
-                            <FaSpinner className="spinner" />
-                          </div>
-                        ) : invoice.imageUrl ? (
-                          <div className="upload-status">
-                            <span className="upload-check">✓</span>
-                          </div>
-                        ) : (
-                          <>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              ref={el => fileInputRefs.current[invoice.invoiceNumber] = el}
-                              onChange={(e) => handleFileUpload(invoice, e)}
-                              style={{ display: 'none' }}
-                              id={`file-upload-${invoice.invoiceNumber}`}
-                            />
-                            <label
-                              htmlFor={`file-upload-${invoice.invoiceNumber}`}
-                              className="upload-button"
-                            >
-                              <FaUpload /> Upload
-                            </label>
-                          </>
-                        )}
+                        <button
+                          className={`upload-files-btn ${invoice.imageUrl ? 'has-image' : ''}`}
+                          onClick={() => setShowUploadModal(invoice)}
+                        >
+                          <FaUpload />
+                          {invoice.imageUrl ? 'Uploaded' : 'Upload Files'}
+                        </button>
                       </div>
-                    </td> */}
+                    </td>
                   </tr>
                 ))
               )}
@@ -2222,6 +2579,32 @@ const Sales = () => {
             onExport={handleExportPDF}
             onUpdate={handleUpdateInvoice}
             onDelete={handleDeleteInvoice}
+          />
+        )}
+
+        {/* UPLOAD MODAL - ADDED */}
+        {showUploadModal && (
+          <UploadModal
+            invoice={showUploadModal}
+            onClose={() => setShowUploadModal(null)}
+            onUploadComplete={(type, data) => {
+              // Refresh data or update state as needed
+              if (type === 'image') {
+                // Update image URL in state
+                setInvoices(prev => prev.map(inv =>
+                  inv.invoiceNumber === showUploadModal.invoiceNumber
+                    ? { ...inv, imageUrl: data }
+                    : inv
+                ));
+              } else if (type === 'excel') {
+                // Update e-invoice details in state
+                setInvoices(prev => prev.map(inv =>
+                  inv.invoiceNumber === showUploadModal.invoiceNumber
+                    ? { ...inv, ...data }
+                    : inv
+                ));
+              }
+            }}
           />
         )}
       </div>

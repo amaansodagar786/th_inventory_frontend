@@ -1,4 +1,3 @@
-
 import { React, useEffect, useState } from "react";
 import "./Salesprint.scss";
 import { QRCodeCanvas as QRCode } from "qrcode.react";
@@ -57,7 +56,11 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
     inspectionPercent,
     tcsPercent,
     additionalCharges,
-    imageUrl
+    imageUrl,
+    // NEW FIELDS
+    irn,
+    ackNo,
+    ackDate
   } = invoice;
 
   // Use the passed taxSlab or fallback to invoice.taxSlab
@@ -72,6 +75,9 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
     // ✅ CORRECT: Calculate TCS on (subtotal + GST)
     tcs: tcsPercent ? ((subtotal + (cgst || 0) + (sgst || 0) + (igst || 0)) * tcsPercent / 100) : 0
   };
+
+  // Check if e-invoice details exist
+  const hasEInvoiceDetails = irn || ackNo || ackDate;
 
   return (
     <div id="sales-pdf">
@@ -182,10 +188,10 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
               <p><strong>Contact:</strong> {transportMobile || 'N/A'}</p>
             </div>
             <div className="bank-details">
-              <p><strong>Bank Name:</strong> BANK OF BAR..</p>
-              <p><strong>Account No:</strong> 0000000000</p>
-              <p><strong>Branch:</strong> BARODA</p>
-              <p><strong>IFSC:</strong> BARODA (0 Zero)</p>
+              <p><strong>Bank Name:</strong> BANK OF BARODA</p>
+              <p><strong>Account No:</strong> 05730400000053</p>
+              <p><strong>Branch:</strong> GIDC MAKARPURA</p>
+              <p><strong>IFSC:</strong> BARBOINDMAK (0 Zero)</p>
             </div>
           </div>
           <div className="amount-details">
@@ -251,65 +257,94 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
             </div>
           )}
 
-          {imageUrl ? (
-            <div className="qr-code" style={{ position: 'relative', minHeight: '120px' }}>
-              <img
-                src={imageUrl}
-                alt="QR Code"
-                style={{
-                  width: '100px',
-                  height: '100px',
-                  border: '1px solid #ccc',
-                  display: 'block',
-                  opacity: imageLoaded ? 1 : 0.3
-                }}
-                onLoad={() => {
-                  console.log('Image onLoad event fired');
-                  setImageLoaded(true);
-                }}
-                onError={(e) => {
-                  console.error('Image onError event fired:', e);
-                  setImageError(true);
-                }}
-                crossOrigin="anonymous"
-              />
-
-              {!imageLoaded && !imageError && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  textAlign: 'center',
-                  fontSize: '10px',
-                  color: '#666'
-                }}>
-                  Loading image...
+          <div className="qr-image-section">
+            {/* E-INVOICE DETAILS ABOVE IMAGE - SIMPLE FORMAT */}
+            {hasEInvoiceDetails && (
+              <div className="einvoice-details-simple">
+                <div className="einvoice-lines">
+                  {irn && (
+                    <div className="detail-line">
+                      <span className="label"><b>IRN: </b>{irn}</span>
+                      {/* <span className="value">{irn}</span> */}
+                    </div>
+                  )}
+                  {ackDate && (
+                    <div className="detail-line">
+                      <span className="label"><b>Ack Date: </b>{ackDate}</span>
+                      {/* <span className="value">{ackDate}</span> */}
+                    </div>
+                  )}
+                  {ackNo && (
+                    <div className="detail-line">
+                      <span className="label"><b>Ack No: </b>{ackNo}</span>
+                      {/* <span className="value">{ackNo}</span>  */}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {imageError && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  textAlign: 'center',
-                  fontSize: '10px',
-                  color: 'red',
-                  background: '#ffeeee',
-                  padding: '5px',
-                  borderRadius: '3px'
-                }}>
-                  Image not available
-                </div>
-              )}
-            </div>
-          ) : qrCodeUrl ? (
-            <div className="qr-code">
-              <QRCode value={qrCodeUrl} size={100} />
-            </div>
-          ) : null}
+            {/* IMAGE/QR CODE */}
+            {imageUrl ? (
+              <div className="qr-code" style={{ position: 'relative', minHeight: '120px' }}>
+                <img
+                  src={imageUrl}
+                  alt="QR Code"
+                  style={{
+                    width: '100px',
+                    height: '100px',
+                    border: '1px solid #ccc',
+                    display: 'block',
+                    opacity: imageLoaded ? 1 : 0.3
+                  }}
+                  onLoad={() => {
+                    console.log('Image onLoad event fired');
+                    setImageLoaded(true);
+                  }}
+                  onError={(e) => {
+                    console.error('Image onError event fired:', e);
+                    setImageError(true);
+                  }}
+                  crossOrigin="anonymous"
+                />
+
+                {!imageLoaded && !imageError && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    fontSize: '10px',
+                    color: '#666'
+                  }}>
+                    Loading image...
+                  </div>
+                )}
+
+                {imageError && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    fontSize: '10px',
+                    color: 'red',
+                    background: '#ffeeee',
+                    padding: '5px',
+                    borderRadius: '3px'
+                  }}>
+                    Image not available
+                  </div>
+                )}
+              </div>
+            ) : qrCodeUrl ? (
+              <div className="qr-code">
+                <QRCode value={qrCodeUrl} size={100} />
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="certification-section">
@@ -317,15 +352,15 @@ const SalesPrint = ({ invoice, qrCodeUrl, taxSlab }) => {
             <p>Certified that particulars given above are true and correct and the amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer</p>
           </div>
           <div className="signature-box">
-            <p>For MANUFACTURING</p>
+            <p>For Ferro Tube And Forge Industry</p>
             <div className="signature-line"></div>
             <p>Authorized Signatory</p>
           </div>
         </div>
 
-        <div className="jurisdiction-note">
+        {/* <div className="jurisdiction-note">
           <p>Subject to Vadodara Jurisdiction</p>
-        </div>
+        </div> */}
       </div>
 
     </div>
