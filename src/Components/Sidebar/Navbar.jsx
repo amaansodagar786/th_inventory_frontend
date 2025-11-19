@@ -57,7 +57,7 @@ const Navbar = ({ children }) => {
     { icon: <LuFile />, title: "Items", path: "/items", permission: "items" },
     { icon: <TbLayoutGridAdd />, title: "Purchase Order", path: "/purchase-order", permission: "purchase-order" },
     { icon: <BsBell />, title: "GRN", path: "/grn", permission: "grn" },
-    { icon: <PiLightbulbThin />, title: "BOM", path: "/bom", permission: "bom" },
+    { icon: <PiLightbulbThin />, title: "Products", path: "/bom", permission: "bom" },
     { icon: <LuCircleDot />, title: "Work Order", path: "/work-order", permission: "work-order" },
     { icon: <PiBasket />, title: "Sales", path: "/sales", permission: "sales" },
     { icon: <BiLayout />, title: "Inventory", path: "/inventory", permission: "inventory" },
